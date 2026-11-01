@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "target_commit": "626c372d259472148d93303f74aa9b9a1cdcef24",
+  "accepted_failures": [
+    {
+      "matrix_id": "RW-AUTH-02",
+      "variant_id": "RW-AUTH-02-N01",
+      "detail_contains": [
+        "invalid id claim returned 500"
+      ],
+      "reason": "Malformed JWT id claim reaches an uncontrolled server error."
+    },
+    {
+      "matrix_id": "RW-AUTH-02",
+      "variant_id": "RW-AUTH-02-N02",
+      "detail_contains": [
+        "missing user id returned 200",
+        "'username': ''"
+      ],
+      "reason": "A signed token for a nonexistent user returns an empty identity."
+    },
+    {
+      "matrix_id": "RW-USER-01",
+      "variant_id": "RW-USER-01-N03",
+      "detail_contains": [
+        "duplicate username: status=201"
+      ],
+      "reason": "Registration currently accepts a duplicate username."
+    },
+    {
+      "matrix_id": "RW-USER-01",
+      "variant_id": "RW-USER-01-N04",
+      "detail_contains": [
+        "long password created unusable hash: hash=False, login=401"
+      ],
+      "reason": "A long password can create an account without a usable hash."
+    },
+    {
+      "matrix_id": "RW-ARTICLE-04",
+      "variant_id": "RW-ARTICLE-04-N01",
+      "detail_contains": [
+        "equal titles did not get distinct slugs: 422",
+        "operation failed"
+      ],
+      "reason": "Two valid articles with the same title currently collide on slug."
+    },
+    {
+      "matrix_id": "RW-ARTICLE-07",
+      "variant_id": "RW-ARTICLE-07-N02",
+      "detail_contains": [
+        "list exposes body contrary to catalog contract",
+        "'body':"
+      ],
+      "reason": "Article list responses currently include body against the pinned response contract."
+    }
+  ]
+}

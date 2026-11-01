@@ -22,6 +22,9 @@ func Migrate(db *gorm.DB) {
 }
 
 func main() {
+	if _, err := common.JWTSigningKey(); err != nil {
+		log.Fatal(err)
+	}
 
 	db := common.Init()
 	Migrate(db)
@@ -32,7 +35,20 @@ func main() {
 		defer sqlDB.Close()
 	}
 
-	r := gin.Default()
+	r := gin.New()
+	// Scrub URL tokens before Gin's logger captures the request path.
+	r.Use(func(c *gin.Context) {
+		query := c.Request.URL.Query()
+		if values, ok := query["access_token"]; ok {
+			if len(values) > 0 {
+				c.Set("legacy_access_token", values[0])
+			}
+			query.Set("access_token", "[REDACTED]")
+			c.Request.URL.RawQuery = query.Encode()
+		}
+		c.Next()
+	})
+	r.Use(gin.Logger(), gin.Recovery())
 
 	// Disable automatic redirect for trailing slashes
 	// This prevents POST body from being lost during redirects

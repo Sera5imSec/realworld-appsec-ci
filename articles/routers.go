@@ -43,7 +43,7 @@ func ArticleCreate(c *gin.Context) {
 	}
 	//fmt.Println(articleModelValidator.articleModel.Author.UserModel)
 
-	if err := SaveOne(&articleModelValidator.articleModel); err != nil {
+	if err := SaveArticleWithTags(&articleModelValidator.articleModel, articleModelValidator.Article.Tags); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}
@@ -75,7 +75,7 @@ func ArticleFeed(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("{error : \"Require auth!\"}"))
 		return
 	}
-	articleUserModel := GetArticleUserModel(myUserModel)
+	articleUserModel := FindArticleUserModel(myUserModel)
 	articleModels, modelCount, err := articleUserModel.GetArticleFeed(limit, offset)
 	if err != nil {
 		c.JSON(http.StatusNotFound, common.NewError("articles", errors.New("Invalid param")))
@@ -118,7 +118,7 @@ func ArticleUpdate(c *gin.Context) {
 	}
 
 	articleModelValidator.articleModel.ID = articleModel.ID
-	if err := articleModel.Update(articleModelValidator.articleModel); err != nil {
+	if err := articleModel.UpdateWithTags(articleModelValidator.articleModel, articleModelValidator.Article.Tags); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, common.NewError("database", err))
 		return
 	}
@@ -206,9 +206,18 @@ func ArticleCommentDelete(c *gin.Context) {
 		c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid id")))
 		return
 	}
+	articleModel, err := FindOneArticle(&ArticleModel{Slug: c.Param("slug")})
+	if err != nil {
+		c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid slug")))
+		return
+	}
 	id := uint(id64)
 	commentModel, err := FindOneComment(&CommentModel{Model: gorm.Model{ID: id}})
 	if err == nil {
+		if commentModel.ArticleID != articleModel.ID {
+			c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid id for article")))
+			return
+		}
 		// Comment exists, check authorization
 		myUserModel := c.MustGet("my_user_model").(users.UserModel)
 		articleUserModel := GetArticleUserModel(myUserModel)

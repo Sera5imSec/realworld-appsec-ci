@@ -9,7 +9,8 @@ import (
 	"github.com/gothinkster/golang-gin-realworld-example-app/common"
 )
 
-// Extract token from Authorization header or query parameter
+// Extract token from Authorization. Query tokens remain a development-only
+// compatibility path and are never accepted in release mode.
 func extractToken(c *gin.Context) string {
 	// Check Authorization header first
 	bearerToken := c.GetHeader("Authorization")
@@ -17,7 +18,15 @@ func extractToken(c *gin.Context) string {
 		return bearerToken[6:]
 	}
 
-	// Check query parameter
+	if gin.Mode() == gin.ReleaseMode {
+		return ""
+	}
+	if value, ok := c.Get("legacy_access_token"); ok {
+		if token, ok := value.(string); ok {
+			return token
+		}
+	}
+	// Development-only query parameter.
 	token := c.Query("access_token")
 	if token != "" {
 		return token
@@ -57,7 +66,7 @@ func AuthMiddleware(auto401 bool) gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(common.JWTSecret), nil
+			return common.JWTSigningKey()
 		})
 
 		if err != nil {

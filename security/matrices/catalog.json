@@ -1,0 +1,3084 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "gothinkster/golang-gin-realworld-example-app",
+    "repository": "https://github.com/gothinkster/golang-gin-realworld-example-app",
+    "commit": "626c372d259472148d93303f74aa9b9a1cdcef24",
+    "scope": "Go/Gin backend based on pinned upstream commit plus local AppSec changes; synthetic local data only",
+    "source_checkout": "work/realworld-go",
+    "date": "2026-10-31",
+    "official_api_spec": "https://docs.realworld.show/specifications/backend/endpoints/",
+    "official_response_spec": "https://docs.realworld.show/specifications/backend/api-response-format/",
+    "official_error_spec": "https://docs.realworld.show/specifications/backend/error-handling/"
+  },
+  "phase": "SOURCE_LINKED_LOCAL_CI",
+  "evidence_rule": "Passing upstream tests or source inspection alone does not close a matrix. Require reachable boundary, normal control, negative case, independent oracle and sensitivity check on the same oracle.",
+  "fixture_contract": "Only synthetic users Alice, Bob, Charlie in a temporary SQLite DB. Article A belongs to Alice, article B to Bob; comment IDs are obtained from DB after fixture creation. No external service or production data. Username values: alice, bobby, charlie (minimum length four).",
+  "basis_legend": {
+    "API_SPEC": "Current official RealWorld API or response specification; check version compatibility before CI gate.",
+    "SOURCE_CONTRACT": "Explicit behavior or registration visible in pinned source; not proof of correct runtime behavior.",
+    "PROPOSED_POLICY": "Security hardening obligation requiring user/project policy approval before blocking CI.",
+    "LOCAL_APPSEC_POLICY": "Project-local security rule recorded in security/POLICY.md; not an official RealWorld specification"
+  },
+  "status_legend": {
+    "DESCRIBED": "Source-linked matrix with planned variants; not executed.",
+    "NOT_READY": "No executable binding, independent observed result, or demonstrated sensitivity yet.",
+    "HOLD_POLICY": "Proposed policy needs a decision before it can be a blocking gate."
+  },
+  "route_inventory": {
+    "canonical": [
+      {
+        "route": "POST /api/users",
+        "auth": "public"
+      },
+      {
+        "route": "POST /api/users/login",
+        "auth": "public"
+      },
+      {
+        "route": "GET /api/user",
+        "auth": "protected"
+      },
+      {
+        "route": "PUT /api/user",
+        "auth": "protected"
+      },
+      {
+        "route": "GET /api/profiles/:username",
+        "auth": "optional"
+      },
+      {
+        "route": "POST /api/profiles/:username/follow",
+        "auth": "protected"
+      },
+      {
+        "route": "DELETE /api/profiles/:username/follow",
+        "auth": "protected"
+      },
+      {
+        "route": "GET /api/articles",
+        "auth": "optional"
+      },
+      {
+        "route": "GET /api/articles/feed",
+        "auth": "protected"
+      },
+      {
+        "route": "GET /api/articles/:slug",
+        "auth": "optional"
+      },
+      {
+        "route": "POST /api/articles",
+        "auth": "protected"
+      },
+      {
+        "route": "PUT /api/articles/:slug",
+        "auth": "protected"
+      },
+      {
+        "route": "DELETE /api/articles/:slug",
+        "auth": "protected"
+      },
+      {
+        "route": "POST /api/articles/:slug/comments",
+        "auth": "protected"
+      },
+      {
+        "route": "GET /api/articles/:slug/comments",
+        "auth": "optional"
+      },
+      {
+        "route": "DELETE /api/articles/:slug/comments/:id",
+        "auth": "protected"
+      },
+      {
+        "route": "POST /api/articles/:slug/favorite",
+        "auth": "protected"
+      },
+      {
+        "route": "DELETE /api/articles/:slug/favorite",
+        "auth": "protected"
+      },
+      {
+        "route": "GET /api/tags",
+        "auth": "optional"
+      }
+    ],
+    "aliases": [
+      {
+        "alias": "POST /api/users/",
+        "canonical": "POST /api/users"
+      },
+      {
+        "alias": "GET /api/user/",
+        "canonical": "GET /api/user"
+      },
+      {
+        "alias": "PUT /api/user/",
+        "canonical": "PUT /api/user"
+      },
+      {
+        "alias": "GET /api/articles/",
+        "canonical": "GET /api/articles"
+      },
+      {
+        "alias": "POST /api/articles/",
+        "canonical": "POST /api/articles"
+      },
+      {
+        "alias": "PUT /api/articles/:slug/",
+        "canonical": "PUT /api/articles/:slug"
+      },
+      {
+        "alias": "GET /api/tags/",
+        "canonical": "GET /api/tags"
+      }
+    ],
+    "extra": [
+      {
+        "route": "GET /api/ping/",
+        "auth": "public"
+      }
+    ]
+  },
+  "matrices": [
+    {
+      "id": "RW-ROUTE-01",
+      "boundary": "HTTP route -> auth middleware -> handler",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users",
+        "POST /api/users/login",
+        "GET /api/user",
+        "PUT /api/user",
+        "GET /api/profiles/:username",
+        "POST /api/profiles/:username/follow",
+        "DELETE /api/profiles/:username/follow",
+        "GET /api/articles",
+        "GET /api/articles/feed",
+        "GET /api/articles/:slug",
+        "POST /api/articles",
+        "PUT /api/articles/:slug",
+        "DELETE /api/articles/:slug",
+        "POST /api/articles/:slug/comments",
+        "GET /api/articles/:slug/comments",
+        "DELETE /api/articles/:slug/comments/:id",
+        "POST /api/articles/:slug/favorite",
+        "DELETE /api/articles/:slug/favorite",
+        "GET /api/tags",
+        "POST /api/users/",
+        "GET /api/user/",
+        "PUT /api/user/",
+        "GET /api/articles/",
+        "POST /api/articles/",
+        "PUT /api/articles/:slug/",
+        "GET /api/tags/",
+        "GET /api/ping/"
+      ],
+      "source_refs": [
+        "hello.go:41",
+        "users/routers.go:10",
+        "articles/routers.go:13",
+        "users/middlewares.go:43"
+      ],
+      "ci_watch_seed": [
+        "hello.go",
+        "users/routers.go",
+        "articles/routers.go",
+        "users/middlewares.go"
+      ],
+      "obligation": "Каждый зарегистрированный маршрут имеет заявленный режим public, optional или protected; алиасы сохраняют тот же режим. Защищённые маршруты без действительной личности прекращают обработку до записи в БД.",
+      "variants": [
+        {
+          "id": "RW-ROUTE-01-R01-P",
+          "kind": "CONTROL",
+          "route": "POST /api/users",
+          "request": {
+            "method": "POST",
+            "path": "/api/users",
+            "headers": {},
+            "body": {
+              "user": {
+                "username": "Dana",
+                "email": "dana@example.test",
+                "password": "SafePassword123"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "public route with valid fixture reaches handler and returns 201; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R02-P",
+          "kind": "CONTROL",
+          "route": "POST /api/users/login",
+          "request": {
+            "method": "POST",
+            "path": "/api/users/login",
+            "headers": {},
+            "body": {
+              "user": {
+                "email": "alice@example.test",
+                "password": "SafePassword123"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "public route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R03-P",
+          "kind": "CONTROL",
+          "route": "GET /api/user",
+          "request": {
+            "method": "GET",
+            "path": "/api/user",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R03-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/user",
+          "request": {
+            "method": "GET",
+            "path": "/api/user",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R04-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/user",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "user": {
+                "bio": "new bio"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R04-N",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/user",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user",
+            "headers": {},
+            "body": {
+              "user": {
+                "bio": "new bio"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R05-P",
+          "kind": "CONTROL",
+          "route": "GET /api/profiles/:username",
+          "request": {
+            "method": "GET",
+            "path": "/api/profiles/bobby",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R05-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/profiles/:username",
+          "request": {
+            "method": "GET",
+            "path": "/api/profiles/bobby",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R06-P",
+          "kind": "CONTROL",
+          "route": "POST /api/profiles/:username/follow",
+          "request": {
+            "method": "POST",
+            "path": "/api/profiles/bobby/follow",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R06-N",
+          "kind": "NEGATIVE",
+          "route": "POST /api/profiles/:username/follow",
+          "request": {
+            "method": "POST",
+            "path": "/api/profiles/bobby/follow",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R07-P",
+          "kind": "CONTROL",
+          "route": "DELETE /api/profiles/:username/follow",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/profiles/bobby/follow",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice follows Bob before the request."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R07-N",
+          "kind": "NEGATIVE",
+          "route": "DELETE /api/profiles/:username/follow",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/profiles/bobby/follow",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice follows Bob before the request."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R08-P",
+          "kind": "CONTROL",
+          "route": "GET /api/articles",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R08-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/articles",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R09-P",
+          "kind": "CONTROL",
+          "route": "GET /api/articles/feed",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/feed",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice follows Bob before the request."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R09-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/articles/feed",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/feed",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice follows Bob before the request."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R10-P",
+          "kind": "CONTROL",
+          "route": "GET /api/articles/:slug",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/alpha-article",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R10-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/articles/:slug",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R11-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Fresh unique title",
+                "description": "description",
+                "body": "body"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 201; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R11-N",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles",
+            "headers": {},
+            "body": {
+              "article": {
+                "title": "Fresh unique title",
+                "description": "description",
+                "body": "body"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R12-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/articles/:slug",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Updated alpha title"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R12-N",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/articles/:slug",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article",
+            "headers": {},
+            "body": {
+              "article": {
+                "title": "Updated alpha title"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R13-P",
+          "kind": "CONTROL",
+          "route": "DELETE /api/articles/:slug",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R13-N",
+          "kind": "NEGATIVE",
+          "route": "DELETE /api/articles/:slug",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R14-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles/:slug/comments",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "comment": {
+                "body": "test comment"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 201; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R14-N",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles/:slug/comments",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {},
+            "body": {
+              "comment": {
+                "body": "test comment"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R15-P",
+          "kind": "CONTROL",
+          "route": "GET /api/articles/:slug/comments",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R15-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/articles/:slug/comments",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R16-P",
+          "kind": "CONTROL",
+          "route": "DELETE /api/articles/:slug/comments/:id",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article/comments/{{comment_a_id}}",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R16-N",
+          "kind": "NEGATIVE",
+          "route": "DELETE /api/articles/:slug/comments/:id",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article/comments/{{comment_a_id}}",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R17-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles/:slug/favorite",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/favorite",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R17-N",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles/:slug/favorite",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/favorite",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R18-P",
+          "kind": "CONTROL",
+          "route": "DELETE /api/articles/:slug/favorite",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article/favorite",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice has favorited alpha-article before the request."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R18-N",
+          "kind": "NEGATIVE",
+          "route": "DELETE /api/articles/:slug/favorite",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/articles/alpha-article/favorite",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice. Alice has favorited alpha-article before the request."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R19-P",
+          "kind": "CONTROL",
+          "route": "GET /api/tags",
+          "request": {
+            "method": "GET",
+            "path": "/api/tags",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R19-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/tags",
+          "request": {
+            "method": "GET",
+            "path": "/api/tags",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R20-P",
+          "kind": "CONTROL",
+          "route": "POST /api/users/",
+          "request": {
+            "method": "POST",
+            "path": "/api/users/",
+            "headers": {},
+            "body": {
+              "user": {
+                "username": "Dana",
+                "email": "dana@example.test",
+                "password": "SafePassword123"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "public route with valid fixture reaches handler and returns 201; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R21-P",
+          "kind": "CONTROL",
+          "route": "GET /api/user/",
+          "request": {
+            "method": "GET",
+            "path": "/api/user/",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R21-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/user/",
+          "request": {
+            "method": "GET",
+            "path": "/api/user/",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R22-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/user/",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user/",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "user": {
+                "bio": "new bio"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R22-N",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/user/",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user/",
+            "headers": {},
+            "body": {
+              "user": {
+                "bio": "new bio"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R23-P",
+          "kind": "CONTROL",
+          "route": "GET /api/articles/",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R23-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/articles/",
+          "request": {
+            "method": "GET",
+            "path": "/api/articles/",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R24-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles/",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Fresh unique title",
+                "description": "description",
+                "body": "body"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 201; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R24-N",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles/",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/",
+            "headers": {},
+            "body": {
+              "article": {
+                "title": "Fresh unique title",
+                "description": "description",
+                "body": "body"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R25-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/articles/:slug/",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article/",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Updated alpha title"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "protected route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R25-N",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/articles/:slug/",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article/",
+            "headers": {},
+            "body": {
+              "article": {
+                "title": "Updated alpha title"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Missing Authorization yields 401; no domain table changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R26-P",
+          "kind": "CONTROL",
+          "route": "GET /api/tags/",
+          "request": {
+            "method": "GET",
+            "path": "/api/tags/",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "optional route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R26-N",
+          "kind": "NEGATIVE",
+          "route": "GET /api/tags/",
+          "request": {
+            "method": "GET",
+            "path": "/api/tags/",
+            "headers": {
+              "Authorization": "Token invalid.synthetic.token"
+            },
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid token is treated as anonymous on this optional route; no viewer identity or private fields appear.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ROUTE-01-R27-P",
+          "kind": "CONTROL",
+          "route": "GET /api/ping/",
+          "request": {
+            "method": "GET",
+            "path": "/api/ping/",
+            "headers": {},
+            "body": null,
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "public route with valid fixture reaches handler and returns 200; identity and DB side effects match the handler contract.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP-статус плюс снимки таблиц users, articles, comments, follows, favorites до/после; перечень маршрутов из реально собранного Gin router.",
+      "sensitivity_plan": "В контролируемой тестовой сборке убрать AuthMiddleware(true) у одного protected маршрута: тот же набор должен увидеть доступ или запись.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "/api/ping/ присутствует в коде, но отсутствует в списке основных маршрутов; его public-статус нужно явно сохранить в инвентаре."
+    },
+    {
+      "id": "RW-AUTH-01",
+      "boundary": "Authorization token -> JWT verification",
+      "priority": "P0",
+      "basis": [
+        "SOURCE_CONTRACT",
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/user",
+        "PUT /api/user",
+        "POST /api/profiles/:username/follow",
+        "DELETE /api/profiles/:username/follow",
+        "GET /api/articles/feed",
+        "POST /api/articles",
+        "PUT /api/articles/:slug",
+        "DELETE /api/articles/:slug",
+        "POST /api/articles/:slug/comments",
+        "DELETE /api/articles/:slug/comments/:id",
+        "POST /api/articles/:slug/favorite",
+        "DELETE /api/articles/:slug/favorite"
+      ],
+      "source_refs": [
+        "users/middlewares.go:13",
+        "users/middlewares.go:43",
+        "common/utils.go:45"
+      ],
+      "ci_watch_seed": [
+        "users/middlewares.go",
+        "common/utils.go"
+      ],
+      "obligation": "Личность присваивается только токену с ожидаемым HMAC-подписанием и действующим сроком; подмена токена не даёт доступа к protected маршруту.",
+      "variants": [
+        {
+          "id": "RW-AUTH-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Войти как Alice, использовать выданный токен в Authorization: Token ...; GET /api/user возвращает Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Изменить один байт подписи токена Alice; GET /api/user должен вернуть 401.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Отправить просроченный или подписанный другим алгоритмом токен; protected маршрут должен вернуть 401.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Статус и identity в JSON; для мутаций дополнительно отсутствие записей в БД.",
+      "sensitivity_plan": "Тестовая мутация, пропускающая jwt.Parse или проверку token.Valid, обязана изменить независимый oracle.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-AUTH-02",
+      "boundary": "JWT claims -> user lookup -> request context",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/user",
+        "PUT /api/user",
+        "POST /api/articles"
+      ],
+      "source_refs": [
+        "users/middlewares.go:30",
+        "users/middlewares.go:43",
+        "users/routers.go:116",
+        "articles/models.go:54"
+      ],
+      "ci_watch_seed": [
+        "users/middlewares.go",
+        "users/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Действительный по подписи токен допускается лишь при корректном положительном числовом id и существующем UserModel; неверные claims и удалённый аккаунт завершаются контролируемым 401, без panic и пустой личности.",
+      "variants": [
+        {
+          "id": "RW-AUTH-02-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Токен Alice содержит её id; GET /api/user возвращает Alice и новый токен того же пользователя.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-02-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Локально подписать токен тем же тестовым ключом, но без id или с id-строкой; ожидать контролируемый отказ, не 500/panic.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-02-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Локально подписать токен с несуществующим id; GET /api/user и POST /api/articles не должны создавать объект от нулевого пользователя.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP-ответ и серверный журнал panic; отдельный запрос к users/articles в тестовой БД.",
+      "sensitivity_plan": "Тестовая мутация, заменяющая проверку найденного пользователя на допуск, должна быть замечена по ответу или записи.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Исходник приводит claims[\"id\"] к float64 без проверки типа и не проверяет ошибку db.First; это кандидат для прогона, не заявленная подтверждённая находка."
+    },
+    {
+      "id": "RW-AUTH-03",
+      "boundary": "HTTP header/query -> token extraction",
+      "priority": "P1",
+      "basis": [
+        "SOURCE_CONTRACT",
+        "LOCAL_APPSEC_POLICY"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/user",
+        "GET /api/profiles/:username",
+        "GET /api/articles"
+      ],
+      "source_refs": [
+        "users/middlewares.go:13",
+        "hello.go:39"
+      ],
+      "ci_watch_seed": [
+        "users/middlewares.go",
+        "hello.go"
+      ],
+      "obligation": "При конфликте Authorization и access_token применяется документированный приоритет заголовка; решение о поддержке токена в URL и его маскировании в логах должно быть явно зафиксировано до CI-gate.",
+      "variants": [
+        {
+          "id": "RW-AUTH-03-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Authorization содержит токен Alice, query access_token содержит токен Bob; текущий контракт выбирает Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-03-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Только query access_token=токен Bob: зафиксировать фактическую личность и попадание URL в журналы локального сервера.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-AUTH-03-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Неверный токен в заголовке плюс действительный токен в query: проверить, что query не подменяет приоритет заголовка.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Identity в GET /api/user и записанный локальный HTTP-журнал с редактированием тестовых токенов в артефакте.",
+      "sensitivity_plan": "Поменять в тестовой копии порядок разбора header/query; oracle личности должен заметить подмену.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-CONFIG-01",
+      "boundary": "deployment configuration -> JWT signing key",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users/login",
+        "GET /api/user"
+      ],
+      "source_refs": [
+        "common/utils.go:41",
+        "common/utils.go:45",
+        "users/middlewares.go:43"
+      ],
+      "ci_watch_seed": [
+        "common/utils.go",
+        "users/middlewares.go"
+      ],
+      "obligation": "Для production JWT-ключ берётся из управляемой конфигурации, не из исходного кода или значения по умолчанию; смена ключа делает старые тестовые токены недействительными по заданной политике.",
+      "variants": [
+        {
+          "id": "RW-CONFIG-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Запустить локальную копию с отдельным случайным тестовым ключом; токен, созданный с ним, принимается.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-CONFIG-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Запустить с другим ключом и предъявить токен первого запуска; ожидать 401.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-CONFIG-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Проверить, что известная строковая константа из исходника не используется как production fallback.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Конфигурация запуска и HTTP-проверка токена; статическая проверка отсутствия константы в production path.",
+      "sensitivity_plan": "Вернуть жёстко заданную константу в тестовой сборке: проверка конфигурации или токена обязана провалиться.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-USER-01",
+      "boundary": "registration input -> password hash and unique user row",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users"
+      ],
+      "source_refs": [
+        "users/routers.go:78",
+        "users/validators.go:12",
+        "users/validators.go:26",
+        "users/models.go:16",
+        "users/models.go:57"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/validators.go",
+        "users/models.go"
+      ],
+      "obligation": "Регистрация принимает валидные username/email/password, сохраняет только проверяемый hash, не создаёт дубль email и не раскрывает пароль или hash в ответе.",
+      "variants": [
+        {
+          "id": "RW-USER-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Зарегистрировать Alice с уникальным email и паролем из 12 символов; вход с этим паролем успешен, в БД hash не равен исходной строке.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Повторить регистрацию с email Alice и другим username; запись Alice и число пользователей не меняются.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Отправить пустой или короткий пароль; ответ 422 и новая запись не появляется.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-01-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Зарегистрировать Dana с username Alice и новым email; уникальность публичного username должна быть сохранена, профиль Alice не должен стать неоднозначным.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-01-N04",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Отправить пароль длиной 100 ASCII-символов, который проходит HTTP-ограничение длины; либо контролируемый отказ без строки пользователя, либо успешное сохранение ненулевого проверяемого hash и последующий login. Пустой hash недопустим.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP JSON и независимый запрос к users: число строк, email, password_hash, bcrypt проверка.",
+      "sensitivity_plan": "Тестовая мутация сохранения пароля без hashing должна быть поймана сравнением БД, даже если HTTP остаётся 201.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-USER-02",
+      "boundary": "login credentials -> authenticated token",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users/login"
+      ],
+      "source_refs": [
+        "users/routers.go:94",
+        "users/models.go:71",
+        "users/serializers.go:52",
+        "common/utils.go:45"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/models.go",
+        "users/serializers.go",
+        "common/utils.go"
+      ],
+      "obligation": "Только правильная пара email/password выдаёт токен нужного пользователя; неверный email и неверный пароль не выдают токен и не различаются полезной для перечисления аккаунтов диагностикой.",
+      "variants": [
+        {
+          "id": "RW-USER-02-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Логин Alice с правильным паролем возвращает 200; GET /api/user с токеном возвращает Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-02-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Логин Alice с неверным паролем возвращает 401 без токена.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-02-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Логин с несуществующим email возвращает тот же класс отказа без токена.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Статус, наличие поля token, identity при последующем GET /api/user; отсутствие новых записей в БД.",
+      "sensitivity_plan": "Убрать checkPassword в тестовой сборке: отрицательный случай обязан обнаружить выданный токен.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-USER-03",
+      "boundary": "authenticated identity -> current-user response",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/user"
+      ],
+      "source_refs": [
+        "users/routers.go:116",
+        "users/serializers.go:52",
+        "users/middlewares.go:30"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/serializers.go",
+        "users/middlewares.go"
+      ],
+      "obligation": "Только владелец токена получает собственные email, username и токен; ответ не содержит hash и полей другого пользователя.",
+      "variants": [
+        {
+          "id": "RW-USER-03-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "GET /api/user с токеном Alice возвращает email Alice и ожидаемые публичные поля.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-03-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Токен Bob не должен вернуть email или токен Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-03-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный GET /api/user должен получить 401 и не раскрыть данные.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Сравнение JSON с двумя независимыми строками пользователей в БД; проверка отсутствия PasswordHash.",
+      "sensitivity_plan": "В тестовой сборке подставить UserModel Alice в контекст Bob: сравнение identity должно сработать.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-USER-04",
+      "boundary": "authenticated user -> profile update",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "PUT /api/user"
+      ],
+      "source_refs": [
+        "users/routers.go:121",
+        "users/validators.go:26",
+        "users/validators.go:50",
+        "users/models.go:99"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/validators.go",
+        "users/models.go"
+      ],
+      "obligation": "Редактируются только разрешённые поля текущего пользователя; id, hash, чужая запись и системные поля не берутся из тела запроса; при изменении пароля сохраняется новый hash.",
+      "variants": [
+        {
+          "id": "RW-USER-04-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice меняет bio и image; меняется только её строка, Bob остаётся прежним.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-04-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice отправляет JSON с чужим id, password_hash и email Bob; чужая строка и системные поля не меняются.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-04-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный PUT /api/user с корректным телом получает 401 без записи.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-USER-04-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice меняет пароль; старый пароль больше не проходит login, новый проходит, Bob и его hash не меняются.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимый снимок строк Alice/Bob до и после плюс проверка пароля через login.",
+      "sensitivity_plan": "Тестовая мутация, которая применяет поля тела напрямую к UserModel без allowlist, должна изменить снимок и провалить проверку.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-PROFILE-01",
+      "boundary": "public profile lookup -> viewer-specific serialization",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/profiles/:username"
+      ],
+      "source_refs": [
+        "users/routers.go:32",
+        "users/serializers.go:24",
+        "users/models.go:121"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/serializers.go",
+        "users/models.go"
+      ],
+      "obligation": "Публичный профиль возвращает только username, bio, image, following; following зависит от текущего зрителя, а email, token, hash и внутренний id не раскрываются.",
+      "variants": [
+        {
+          "id": "RW-PROFILE-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice подписана на Bob: Alice видит following=true в профиле Bob; аноним видит false.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-PROFILE-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Bob и аноним не должны получить email, token, password_hash или внутренний id в JSON.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-PROFILE-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Неизвестный username возвращает 404 без чужого профиля.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Парсинг JSON по allowlist полей и независимая таблица follows для Alice/Bob.",
+      "sensitivity_plan": "Тестовая мутация сериализатора, добавляющая Email, обязана быть обнаружена allowlist-проверкой.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-FOLLOW-01",
+      "boundary": "authenticated actor + target username -> follow edge",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/profiles/:username/follow",
+        "DELETE /api/profiles/:username/follow"
+      ],
+      "source_refs": [
+        "users/routers.go:43",
+        "users/routers.go:60",
+        "users/models.go:108",
+        "users/models.go:134"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "users/models.go"
+      ],
+      "obligation": "Подписка и отписка изменяют только связь текущего пользователя с выбранным профилем; операции не меняют связи Bob и повтор не создаёт дополнительную связь.",
+      "variants": [
+        {
+          "id": "RW-FOLLOW-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice подписывается на Bob и отписывается; соответствующая связь появляется и исчезает.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FOLLOW-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice отправляет body с id Charlie или чужим follower; связь Bob->Charlie остаётся неизменной.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FOLLOW-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Повторный POST от Alice к Bob не создаёт вторую активную связь; анонимный POST/DELETE не меняет таблицу.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FOLLOW-01-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice пытается подписаться на несуществующий username; 404 и новая связь не появляется.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Строки follow по паре actor-target до/после и поле following в ответах для Alice/Bob.",
+      "sensitivity_plan": "Тестовая мутация, заменяющая actor на указанный в body id, должна изменить независимый снимок связей.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-ARTICLE-01",
+      "boundary": "authenticated identity + article body -> article author",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/articles"
+      ],
+      "source_refs": [
+        "articles/routers.go:38",
+        "articles/validators.go:35",
+        "articles/models.go:54",
+        "articles/models.go:144"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/validators.go",
+        "articles/models.go"
+      ],
+      "obligation": "Валидная статья создаётся от текущего пользователя; клиент не может выбрать AuthorID, а невалидный запрос не создаёт статью или связанные записи.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice создаёт статью с title, description, body; в БД AuthorID соответствует Alice, ответ показывает Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice добавляет в JSON author/author_id Bob; новая статья всё равно принадлежит Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Не указать body или отправить недопустимый тип; 422 и число статей не меняется.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP JSON, строки articles и article_users в тестовой БД до/после.",
+      "sensitivity_plan": "Тестовая мутация, читающая author_id из тела, должна изменить DB-oracle и провалить проверку.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-ARTICLE-02",
+      "boundary": "article slug + actor -> update authorization",
+      "priority": "P0",
+      "basis": [
+        "SOURCE_CONTRACT",
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "PUT /api/articles/:slug"
+      ],
+      "source_refs": [
+        "articles/routers.go:99",
+        "articles/validators.go:24",
+        "articles/models.go:352"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/validators.go",
+        "articles/models.go"
+      ],
+      "obligation": "Обновить статью может только её автор; отказ чужому пользователю не меняет текст, slug, теги и владельца.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-02-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice меняет title собственной статьи; обновлённые поля и slug относятся к той же записи.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-02-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Bob отправляет PUT к статье Alice с новым title/body/tagList; ожидается 403 и полный снимок статьи и тегов не меняется.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-02-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный PUT к той же статье и алиасу со слешем не достигает обновления.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP status и DB-снимок строки статьи плюс join article_tags, сопоставленный с исходным ID.",
+      "sensitivity_plan": "Убрать сравнение AuthorID в тестовой сборке: DB-снимок должен обнаружить изменение от Bob.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-ARTICLE-03",
+      "boundary": "article slug + actor -> delete authorization",
+      "priority": "P0",
+      "basis": [
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "DELETE /api/articles/:slug"
+      ],
+      "source_refs": [
+        "articles/routers.go:129",
+        "articles/models.go:358"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Удаление существующей статьи разрешено только её автору; другой пользователь не может удалить или скрыть её.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-03-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice удаляет собственную статью; обычный GET по slug больше её не возвращает.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-03-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Bob удаляет статью Alice; 403 и статья остаётся доступной Alice и анонимному GET.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-03-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный DELETE не меняет запись; неизвестный slug отдельно фиксируется как текущая idempotent-ветка без вывода о разрешении чужого удаления.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP status, DB row/soft-delete state и повторный GET статьи.",
+      "sensitivity_plan": "Отключить сравнение AuthorID в тестовой копии: чужое удаление должно быть видно по DB и GET.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-ARTICLE-04",
+      "boundary": "article title -> slug -> stable resource identity",
+      "priority": "P1",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/articles",
+        "PUT /api/articles/:slug",
+        "GET /api/articles/:slug"
+      ],
+      "source_refs": [
+        "articles/validators.go:35",
+        "articles/models.go:13",
+        "articles/routers.go:38",
+        "articles/routers.go:99"
+      ],
+      "ci_watch_seed": [
+        "articles/validators.go",
+        "articles/models.go",
+        "articles/routers.go"
+      ],
+      "obligation": "Разные статьи, включая статьи с одинаковым title, получают разные slug; изменение title обновляет slug только той же статьи, без перезаписи другого автора.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-04-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice и Bob создают статьи с разными title; каждый slug ведёт к соответствующему ID и автору.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-04-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice и Bob независимо создают статьи с одинаковым title; обе должны быть доступны под разными slug согласно текущей спецификации.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-04-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice переименовывает статью на title существующей статьи Bob; запись Bob и её URL не меняются.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимые ID/slug/author в БД и GET по обоим slug.",
+      "sensitivity_plan": "Тестовая мутация, заменяющая генерацию уникального slug на детерминированный slug.Make без разрешения коллизии, должна нарушить oracle.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Текущая спецификация явно требует уникальные slug при одинаковых title; исходник использует slug.Make и uniqueIndex. Результат не утверждаем без прогона."
+    },
+    {
+      "id": "RW-ARTICLE-05",
+      "boundary": "article validation/save -> tag creation and association",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/articles",
+        "PUT /api/articles/:slug",
+        "GET /api/tags"
+      ],
+      "source_refs": [
+        "articles/validators.go:35",
+        "articles/models.go:310",
+        "articles/routers.go:38",
+        "articles/routers.go:99"
+      ],
+      "ci_watch_seed": [
+        "articles/validators.go",
+        "articles/models.go",
+        "articles/routers.go"
+      ],
+      "obligation": "Статья и её теги изменяются атомарно: если создание или обновление статьи отклонено, не появляются новые теги и связи; допустимые теги принадлежат только завершённым операциям.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-05-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice создаёт статью с новым уникальным тегом; статья, тег и связь присутствуют вместе.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-05-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Создать новую статью с уже занятым slug и новым тегом; при отказе не должно остаться нового тега/связи.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-05-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Отправить обновление статьи, которое не проходит проверку/сохранение, с новым tagList; прежние теги остаются прежними.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "DB-снимки articles, tags и article_tags до/после; GET /api/tags как внешний маршрут.",
+      "sensitivity_plan": "Тестовая мутация, сохраняющая тег перед ошибкой статьи, должна обнаруживаться DB-oracle.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-ARTICLE-06",
+      "boundary": "public query parameters -> article list selection",
+      "priority": "P1",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles"
+      ],
+      "source_refs": [
+        "articles/routers.go:54",
+        "articles/models.go:177",
+        "articles/serializers.go:116"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go",
+        "articles/serializers.go"
+      ],
+      "obligation": "Публичный список возвращает только статьи, соответствующие выбранному tag, author или favorited; count и порядок/страницы соответствуют выбранному набору, без смешения с другой фикстурой.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-06-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Создать статьи Alice/Bob с разными тегами и избранным; GET с каждым фильтром возвращает нужные slug, count и страницу.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-06-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Запросить несуществующий author/tag/favorited; список пуст и не включает статьи других пользователей.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-06-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Задать offset за концом набора; ответ пуст, count сохраняет число подходящих статей.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Сравнение множества article ID по независимым DB-запросам с JSON slug/count; проверка порядка по времени.",
+      "sensitivity_plan": "Убрать фильтр author в тестовой сборке: DB-oracle должен выявить чужую статью.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-FEED-01",
+      "boundary": "authenticated user -> follow graph -> article feed",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles/feed"
+      ],
+      "source_refs": [
+        "articles/routers.go:70",
+        "articles/models.go:266",
+        "users/models.go:143"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go",
+        "users/models.go"
+      ],
+      "obligation": "Лента пользователя включает статьи только тех авторов, на которых он подписан, с корректным count и без данных из несвязанных подписок.",
+      "variants": [
+        {
+          "id": "RW-FEED-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice подписана на Bob, но не на Charlie; feed Alice содержит статью Bob и не содержит статью Charlie.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FEED-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Feed Charlie без подписок не включает статьи Bob или Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FEED-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный запрос к /api/articles/feed получает 401; чужой токен не меняет состав feed Alice.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Отдельные DB-запросы по follow edges и author IDs, сопоставление slug и articlesCount в HTTP.",
+      "sensitivity_plan": "Тестовая мутация, убирающая WHERE author_id IN followings, должна добавить статью Charlie и быть замечена.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-ARTICLE-07",
+      "boundary": "article DB model -> public and viewer-specific JSON",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles/:slug",
+        "GET /api/articles",
+        "GET /api/articles/feed"
+      ],
+      "source_refs": [
+        "articles/routers.go:88",
+        "articles/serializers.go:67",
+        "articles/serializers.go:93",
+        "articles/serializers.go:116",
+        "users/serializers.go:24"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/serializers.go",
+        "users/serializers.go"
+      ],
+      "obligation": "Ответы содержат только документированные поля статьи/профиля, без email, hash, token и внутренних ID; favorited/following определяются текущим зрителем. Для текущей версии спецификации списки не включают body.",
+      "variants": [
+        {
+          "id": "RW-ARTICLE-07-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Аноним, Alice и Bob читают одну статью; общие поля совпадают, viewer-specific поля соответствуют их подпискам/избранному.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-07-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Вложенный author и list response не содержат email/password_hash/token/internal ID.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ARTICLE-07-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "GET списка в контракте текущей спецификации не содержит body каждой статьи; расхождение фиксируется отдельно от вопроса приватности.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Парсинг JSON по allowlist из официального response format и DB-отношения Alice/Bob.",
+      "sensitivity_plan": "Тестовая мутация, добавляющая Email автора в ArticleResponse, обязана быть замечена allowlist-oracle.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Упоминание body в списках относится к текущей версии официального API; до CI-gate нужно согласовать версию контракта с выбранным примером."
+    },
+    {
+      "id": "RW-TAG-01",
+      "boundary": "article tag association -> public tag list",
+      "priority": "P1",
+      "basis": [
+        "API_SPEC",
+        "LOCAL_APPSEC_POLICY"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/tags",
+        "POST /api/articles",
+        "PUT /api/articles/:slug"
+      ],
+      "source_refs": [
+        "articles/routers.go:243",
+        "articles/models.go:170",
+        "articles/models.go:310",
+        "articles/serializers.go:20"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go",
+        "articles/serializers.go"
+      ],
+      "obligation": "GET /api/tags возвращает только строковые теги, созданные завершёнными операциями; повторное использование тега не создаёт лишних активных записей.",
+      "variants": [
+        {
+          "id": "RW-TAG-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice и Bob создают статьи с общим тегом; GET /api/tags содержит этот тег один раз.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-TAG-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Ошибка создания статьи с новым тегом не должна оставлять тег видимым в GET /api/tags.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-TAG-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Параллельное добавление одного и того же тега не создаёт дубликатов или чужих article_tags связей.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP tags и DB-таблицы tags/article_tags с подсчётом активных строк.",
+      "sensitivity_plan": "Тестовая мутация, удаляющая уникальность Tag или откат связи, должна быть замечена count и DB-снимком.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-COMMENT-01",
+      "boundary": "authenticated user + article slug + body -> comment row",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/articles/:slug/comments"
+      ],
+      "source_refs": [
+        "articles/routers.go:181",
+        "articles/validators.go:62",
+        "articles/models.go:45"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/validators.go",
+        "articles/models.go"
+      ],
+      "obligation": "Новый комментарий связывается с указанной существующей статьёй и текущим пользователем; чужой author_id из тела не принимается.",
+      "variants": [
+        {
+          "id": "RW-COMMENT-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice комментирует статью Bob; строка comment указывает на article Bob и автора Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice указывает в JSON author_id Bob; в БД остаётся автор Alice.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Неверный slug или пустой body не создаёт комментарий.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP JSON и независимые CommentModel.ArticleID/AuthorID в БД.",
+      "sensitivity_plan": "Тестовая мутация, использующая author_id из body, должна нарушить DB-oracle.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-COMMENT-02",
+      "boundary": "comment id + authenticated actor -> delete authorization",
+      "priority": "P0",
+      "basis": [
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "DELETE /api/articles/:slug/comments/:id"
+      ],
+      "source_refs": [
+        "articles/routers.go:203",
+        "articles/models.go:157",
+        "articles/models.go:364"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Удалить существующий комментарий может только его автор; отказ Bob не меняет комментарий Alice.",
+      "variants": [
+        {
+          "id": "RW-COMMENT-02-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice удаляет собственный комментарий на статье Bob; он исчезает из списка комментариев.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-02-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Bob отправляет DELETE к id комментария Alice; 403, комментарий остаётся.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-02-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Анонимный DELETE к тому же id не меняет строку.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-02-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice передаёт нечисловой :id через существующий slug; 404, ни один комментарий не изменён.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP status, DB row/soft-delete state и повторный GET comments.",
+      "sensitivity_plan": "Отключить проверку AuthorID в тестовой сборке: чужое удаление должно быть видно по DB и GET.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-COMMENT-03",
+      "boundary": "article slug + comment id -> nested-resource identity",
+      "priority": "P0",
+      "basis": [
+        "LOCAL_APPSEC_POLICY",
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "DELETE /api/articles/:slug/comments/:id"
+      ],
+      "source_refs": [
+        "articles/routers.go:203",
+        "articles/models.go:157",
+        "articles/models.go:364"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Вложенный маршрут удаляет комментарий лишь если comment.ArticleID соответствует статье из :slug; валидный id из другой статьи не выбирает чужой вложенный ресурс.",
+      "variants": [
+        {
+          "id": "RW-COMMENT-03-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice удаляет свой comment A через slug статьи A; удаляется ровно comment A.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-03-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice подставляет slug статьи B к id своего comment A; запрос должен быть отклонён, comment A сохранён.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-03-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Использовать несуществующий slug с существующим id; существующий комментарий остаётся.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимая связь CommentModel.ArticleID -> ArticleModel.Slug в БД и состояние комментария после HTTP.",
+      "sensitivity_plan": "В тестовой сборке убрать сравнение slug и ArticleID: отрицательный сценарий обязан удалить comment A и быть замечен.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-COMMENT-04",
+      "boundary": "article slug -> public comments list",
+      "priority": "P1",
+      "basis": [
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles/:slug/comments"
+      ],
+      "source_refs": [
+        "articles/routers.go:228",
+        "articles/models.go:164",
+        "articles/serializers.go:161",
+        "articles/serializers.go:173"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go",
+        "articles/serializers.go"
+      ],
+      "obligation": "Публичный список содержит комментарии только указанной статьи и лишь документированные поля комментария и автора.",
+      "variants": [
+        {
+          "id": "RW-COMMENT-04-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Статьи A/B имеют разные комментарии; анонимный GET статьи A возвращает только комментарии A.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-04-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "GET несуществующего slug не возвращает комментарии другой статьи.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-COMMENT-04-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "В JSON нет email, password_hash, token или внутренних ID автора.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимый DB-запрос comments WHERE article_id=A и проверка JSON allowlist.",
+      "sensitivity_plan": "Тестовая мутация, убирающая фильтр ArticleID, должна добавить комментарий B и быть замечена.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-FAVORITE-01",
+      "boundary": "authenticated actor + article slug -> favorite edge and counts",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/articles/:slug/favorite",
+        "DELETE /api/articles/:slug/favorite",
+        "GET /api/articles/:slug",
+        "GET /api/articles"
+      ],
+      "source_refs": [
+        "articles/routers.go:149",
+        "articles/routers.go:165",
+        "articles/models.go:67",
+        "articles/models.go:76",
+        "articles/models.go:87",
+        "articles/models.go:112",
+        "articles/models.go:128",
+        "articles/models.go:138"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Избранное относится только к текущему пользователю и статье; повторные и параллельные операции не создают дубликаты, а favorited и favoritesCount соответствуют активным связям.",
+      "variants": [
+        {
+          "id": "RW-FAVORITE-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Alice добавляет статью Bob в избранное; для Alice favorited=true, для Bob=false, count=1; после DELETE count=0.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FAVORITE-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice и Bob добавляют одну статью, затем Alice удаляет избранное; связь Bob остаётся и count=1.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FAVORITE-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Повторить POST Alice дважды и параллельно; одна активная связь Alice-article и корректный count.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-FAVORITE-01-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Alice отправляет favorite для несуществующего slug; 404, новые FavoriteModel не появляются.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимый count и набор FavoriteModel по articleID/userID в БД плюс JSON для Alice/Bob.",
+      "sensitivity_plan": "В тестовой сборке убрать ограничение favorite_by_id при DELETE или подсчёте: DB-oracle обнаружит чужое удаление или неверный count.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null
+    },
+    {
+      "id": "RW-INPUT-01",
+      "boundary": "HTTP JSON/form binding -> typed validator -> mutation",
+      "priority": "P0",
+      "basis": [
+        "API_SPEC",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users",
+        "POST /api/users/login",
+        "PUT /api/user",
+        "POST /api/articles",
+        "PUT /api/articles/:slug",
+        "POST /api/articles/:slug/comments"
+      ],
+      "source_refs": [
+        "common/utils.go:68",
+        "common/utils.go:96",
+        "users/validators.go:26",
+        "articles/validators.go:35",
+        "articles/validators.go:62",
+        "users/validators.go:71"
+      ],
+      "ci_watch_seed": [
+        "articles/validators.go",
+        "common/utils.go",
+        "users/validators.go"
+      ],
+      "obligation": "Отсутствующие, неверно типизированные и синтаксически неверные поля дают контролируемый 4xx по контракту и не меняют БД; обработчик ошибок не должен panic на ошибке биндинга.",
+      "variants": [
+        {
+          "id": "RW-INPUT-01-R01-P",
+          "kind": "CONTROL",
+          "route": "POST /api/users",
+          "request": {
+            "method": "POST",
+            "path": "/api/users",
+            "headers": {},
+            "body": {
+              "user": {
+                "username": "Dana",
+                "email": "dana@example.test",
+                "password": "SafePassword123"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R01-N1",
+          "kind": "NEGATIVE",
+          "route": "POST /api/users",
+          "request": {
+            "method": "POST",
+            "path": "/api/users",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R01-N2",
+          "kind": "NEGATIVE",
+          "route": "POST /api/users",
+          "request": {
+            "method": "POST",
+            "path": "/api/users",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "user": {
+                "username": "Dana",
+                "email": "dana@example.test"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R02-P",
+          "kind": "CONTROL",
+          "route": "POST /api/users/login",
+          "request": {
+            "method": "POST",
+            "path": "/api/users/login",
+            "headers": {},
+            "body": {
+              "user": {
+                "email": "alice@example.test",
+                "password": "SafePassword123"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R02-N1",
+          "kind": "NEGATIVE",
+          "route": "POST /api/users/login",
+          "request": {
+            "method": "POST",
+            "path": "/api/users/login",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R02-N2",
+          "kind": "NEGATIVE",
+          "route": "POST /api/users/login",
+          "request": {
+            "method": "POST",
+            "path": "/api/users/login",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "user": {
+                "email": "alice@example.test"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R03-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/user",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "user": {
+                "bio": "new bio"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R03-N1",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/user",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R03-N2",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/user",
+          "request": {
+            "method": "PUT",
+            "path": "/api/user",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "user": {
+                "email": "not-an-email"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R04-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Fresh unique title",
+                "description": "description",
+                "body": "body"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R04-N1",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R04-N2",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "article": {
+                "title": "A title",
+                "description": "description"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R05-P",
+          "kind": "CONTROL",
+          "route": "PUT /api/articles/:slug",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "article": {
+                "title": "Updated alpha title"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R05-N1",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/articles/:slug",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R05-N2",
+          "kind": "NEGATIVE",
+          "route": "PUT /api/articles/:slug",
+          "request": {
+            "method": "PUT",
+            "path": "/api/articles/alpha-article",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "article": {
+                "title": "x"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R06-P",
+          "kind": "CONTROL",
+          "route": "POST /api/articles/:slug/comments",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {
+              "Authorization": "Token {{alice_token}}"
+            },
+            "body": {
+              "comment": {
+                "body": "test comment"
+              }
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Valid JSON reaches handler and has only its expected domain effect.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R06-N1",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles/:slug/comments",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": "{",
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Malformed JSON returns controlled 4xx, no panic/500, no DB changes.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-INPUT-01-R06-N2",
+          "kind": "NEGATIVE",
+          "route": "POST /api/articles/:slug/comments",
+          "request": {
+            "method": "POST",
+            "path": "/api/articles/alpha-article/comments",
+            "headers": {
+              "Authorization": "Token {{alice_token}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "comment": {}
+            },
+            "fixture": "Fresh isolated DB fixture: Alice, Bob, article alpha-article owned by Alice, comment_a_id owned by Alice."
+          },
+          "scenario_and_expected": "Invalid or missing required field returns 422 and no DB changes.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP status/body, журнал panic и снимки затронутых таблиц до/после.",
+      "sensitivity_plan": "Заменить обработку binding error на продолжение обработки в тестовой сборке: DB или HTTP-oracle должен заметить изменение.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "NewValidatorError приводит err к validator.ValidationErrors; поведение при JSON syntax error требует отдельной проверки."
+    },
+    {
+      "id": "RW-QUERY-01",
+      "boundary": "untrusted slug/username/filter -> GORM predicates",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY",
+        "SOURCE_CONTRACT"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/profiles/:username",
+        "GET /api/articles",
+        "GET /api/articles/:slug",
+        "GET /api/articles/:slug/comments"
+      ],
+      "source_refs": [
+        "users/routers.go:32",
+        "articles/routers.go:54",
+        "articles/routers.go:88",
+        "articles/models.go:150",
+        "articles/models.go:177"
+      ],
+      "ci_watch_seed": [
+        "users/routers.go",
+        "articles/routers.go",
+        "articles/models.go"
+      ],
+      "obligation": "Строки клиента используются как значения запроса, не как SQL-структура; специальные символы не расширяют выборку и не возвращают чужую запись.",
+      "variants": [
+        {
+          "id": "RW-QUERY-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Точный username/slug/tag возвращает только соответствующий объект.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-QUERY-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Передать кавычки и SQL-метасимволы в username, slug и tag; результат пуст или корректный 4xx, без расширенной выборки.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-QUERY-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Запрос с необычным Unicode и процентным кодированием не меняет интерпретацию других параметров.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Сравнение возвращённых ID с независимым параметризованным DB-запросом и снимком БД.",
+      "sensitivity_plan": "Тестовая мутация на сырую SQL-конкатенацию должна расширить выборку и быть замечена по ID.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-RESOURCE-01",
+      "boundary": "request size/pagination -> DB and serialization workload",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles",
+        "GET /api/articles/feed",
+        "POST /api/articles"
+      ],
+      "source_refs": [
+        "articles/routers.go:54",
+        "articles/routers.go:70",
+        "articles/models.go:177",
+        "articles/models.go:266",
+        "articles/validators.go:12",
+        "common/utils.go:96"
+      ],
+      "ci_watch_seed": [
+        "articles/routers.go",
+        "articles/models.go",
+        "articles/validators.go",
+        "common/utils.go"
+      ],
+      "obligation": "Запросы ограничены: limit не более 100, отрицательные limit/offset нормализуются, tagList не длиннее 32 элементов, JSON не более 64 KiB; превышение размеров не меняет БД.",
+      "variants": [
+        {
+          "id": "RW-RESOURCE-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Запрос с limit=20 и небольшим tagList обрабатывается в заданном бюджете.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-RESOURCE-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Передать очень большой или отрицательный limit/offset; приложение нормализует/отклоняет их и не возвращает неограниченный набор.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-RESOURCE-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Передать 64 тега; запрос получает 422 без новых записей.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-RESOURCE-01-N03",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Передать JSON более 64 KiB; запрос получает 4xx без новых записей.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP-код, число статей в ответе и независимые снимки БД до/после запросов с 64 тегами и JSON более 64 KiB.",
+      "sensitivity_plan": "Отключить лимит выборки в тестовой сборке: контроль числа строк обязан заметить превышение.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-ERROR-01",
+      "boundary": "internal DB/binding error -> public HTTP response",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY",
+        "API_SPEC"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "POST /api/users",
+        "POST /api/articles",
+        "GET /api/articles",
+        "GET /api/tags"
+      ],
+      "source_refs": [
+        "common/utils.go:68",
+        "common/utils.go:86",
+        "users/routers.go:78",
+        "articles/routers.go:38",
+        "articles/routers.go:243"
+      ],
+      "ci_watch_seed": [
+        "common/utils.go",
+        "users/routers.go",
+        "articles/routers.go"
+      ],
+      "obligation": "Публичный отказ сохраняет правильный класс статуса и структурированный JSON, не раскрывая SQL, локальные пути, ключи, stack trace или внутренние имена таблиц.",
+      "variants": [
+        {
+          "id": "RW-ERROR-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Неверный обязательный пользовательский ввод получает ожидаемый 422 с понятным полем ошибки.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ERROR-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Вызвать уникальный конфликт или контролируемую ошибку локальной БД; ответ не содержит SQL/путь к DB и stack trace.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-ERROR-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Синтаксически неверный JSON возвращает контролируемый ответ, не сырую panic-страницу.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "HTTP body/status allowlist и отдельный локальный серверный журнал, который может хранить детали только вне ответа.",
+      "sensitivity_plan": "Тестовая мутация, вставляющая текст DB error в HTTP body, должна сработать на запрещённый маркер.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-READ-01",
+      "boundary": "GET handler/serializer -> database state",
+      "priority": "P1",
+      "basis": [
+        "LOCAL_APPSEC_POLICY"
+      ],
+      "policy_hold": false,
+      "reach": [
+        "GET /api/articles",
+        "GET /api/articles/:slug",
+        "GET /api/articles/feed",
+        "GET /api/profiles/:username"
+      ],
+      "source_refs": [
+        "articles/models.go:54",
+        "articles/models.go:177",
+        "articles/serializers.go:67",
+        "articles/serializers.go:116",
+        "articles/routers.go:88"
+      ],
+      "ci_watch_seed": [
+        "articles/models.go",
+        "articles/serializers.go",
+        "articles/routers.go"
+      ],
+      "obligation": "Чтение публичных объектов не создаёт и не меняет доменные строки users, article_users, follows, favorites, tags или articles; viewer-specific вычисления остаются read-only.",
+      "variants": [
+        {
+          "id": "RW-READ-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "Создать Alice без ArticleUserModel и затем GET публичной статьи как Alice; доменные таблицы до/после совпадают.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-READ-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "GET /api/articles?author=Alice и GET статьи с токеном Alice не должны создавать ArticleUserModel только из-за сериализации/фильтра.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-READ-01-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "Многократный GET не меняет счётчики или связи.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Независимые DB-снимки всех доменных таблиц до/после GET, исключая технические журналы.",
+      "sensitivity_plan": "В тестовой сборке явно добавить FirstOrCreate при GET: DB-снимок обязан обнаружить новую строку.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Local AppSec rule: security/POLICY.md"
+    }
+  ],
+  "route_coverage": [
+    {
+      "route": "POST /api/users",
+      "auth": "public",
+      "matrices": [
+        "RW-USER-01",
+        "RW-INPUT-01",
+        "RW-ERROR-01"
+      ]
+    },
+    {
+      "route": "POST /api/users/login",
+      "auth": "public",
+      "matrices": [
+        "RW-CONFIG-01",
+        "RW-USER-02"
+      ]
+    },
+    {
+      "route": "GET /api/user",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-AUTH-02",
+        "RW-AUTH-03",
+        "RW-CONFIG-01",
+        "RW-USER-03"
+      ]
+    },
+    {
+      "route": "PUT /api/user",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-AUTH-02",
+        "RW-USER-04",
+        "RW-INPUT-01"
+      ]
+    },
+    {
+      "route": "GET /api/profiles/:username",
+      "auth": "optional",
+      "matrices": [
+        "RW-AUTH-03",
+        "RW-PROFILE-01",
+        "RW-QUERY-01",
+        "RW-READ-01"
+      ]
+    },
+    {
+      "route": "POST /api/profiles/:username/follow",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-FOLLOW-01"
+      ]
+    },
+    {
+      "route": "DELETE /api/profiles/:username/follow",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-FOLLOW-01"
+      ]
+    },
+    {
+      "route": "GET /api/articles",
+      "auth": "optional",
+      "matrices": [
+        "RW-AUTH-03",
+        "RW-ARTICLE-06",
+        "RW-ARTICLE-07",
+        "RW-FAVORITE-01",
+        "RW-QUERY-01",
+        "RW-RESOURCE-01",
+        "RW-ERROR-01",
+        "RW-READ-01"
+      ]
+    },
+    {
+      "route": "GET /api/articles/feed",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-FEED-01",
+        "RW-ARTICLE-07",
+        "RW-RESOURCE-01",
+        "RW-READ-01"
+      ]
+    },
+    {
+      "route": "GET /api/articles/:slug",
+      "auth": "optional",
+      "matrices": [
+        "RW-ARTICLE-04",
+        "RW-ARTICLE-07",
+        "RW-FAVORITE-01",
+        "RW-QUERY-01",
+        "RW-READ-01"
+      ]
+    },
+    {
+      "route": "POST /api/articles",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-AUTH-02",
+        "RW-ARTICLE-01",
+        "RW-ARTICLE-04",
+        "RW-ARTICLE-05",
+        "RW-TAG-01",
+        "RW-INPUT-01",
+        "RW-RESOURCE-01",
+        "RW-ERROR-01"
+      ]
+    },
+    {
+      "route": "PUT /api/articles/:slug",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-ARTICLE-02",
+        "RW-ARTICLE-04",
+        "RW-ARTICLE-05",
+        "RW-TAG-01",
+        "RW-INPUT-01"
+      ]
+    },
+    {
+      "route": "DELETE /api/articles/:slug",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-ARTICLE-03"
+      ]
+    },
+    {
+      "route": "POST /api/articles/:slug/comments",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-COMMENT-01",
+        "RW-INPUT-01"
+      ]
+    },
+    {
+      "route": "GET /api/articles/:slug/comments",
+      "auth": "optional",
+      "matrices": [
+        "RW-COMMENT-04",
+        "RW-QUERY-01"
+      ]
+    },
+    {
+      "route": "DELETE /api/articles/:slug/comments/:id",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-COMMENT-02",
+        "RW-COMMENT-03"
+      ]
+    },
+    {
+      "route": "POST /api/articles/:slug/favorite",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-FAVORITE-01"
+      ]
+    },
+    {
+      "route": "DELETE /api/articles/:slug/favorite",
+      "auth": "protected",
+      "matrices": [
+        "RW-AUTH-01",
+        "RW-FAVORITE-01"
+      ]
+    },
+    {
+      "route": "GET /api/tags",
+      "auth": "optional",
+      "matrices": [
+        "RW-ARTICLE-05",
+        "RW-TAG-01",
+        "RW-ERROR-01"
+      ]
+    }
+  ],
+  "known_gaps": [
+    "Frontend and deployment environment are out of scope; CORS policy is conditional on their topology.",
+    "Actual Gin route inventory, local behavior, and matrix sensitivity have not yet been executed.",
+    "CI selection from ci_watch_seed is only an initial source map; transitive call dependencies must be resolved before gate use.",
+    "Current official API spec may differ from this example app release; spec mismatches are hypotheses until runtime checks."
+  ]
+}

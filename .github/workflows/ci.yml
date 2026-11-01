@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [ master, main ]
   pull_request:
@@ -13,7 +14,6 @@ jobs:
     
     permissions:
       contents: read
-      pull-requests: write
     
     strategy:
       matrix:
@@ -40,15 +40,6 @@ jobs:
     - name: Run tests with coverage
       run: bash ./scripts/coverage.sh
     
-    - name: Upload coverage to Coveralls
-      if: matrix.go-version == '1.23'
-      uses: coverallsapp/github-action@v2
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./coverage.out
-        format: golang
-        flag-name: go-${{ matrix.go-version }}
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -130,3 +121,66 @@ jobs:
     
     - name: Run API Tests
       run: bash ./scripts/run-api-tests.sh
+
+  matrix-appsec:
+    name: Boundary Matrix Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code and base history
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Validate matrix catalog and bindings
+      run: python3 security/matrix_ci.py validate
+
+    - name: Check matrix gate integrity
+      run: python3 -m unittest discover -s security -p 'test_matrix_gate.py'
+
+    - name: Select matrices changed by this commit
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      run: python3 security/matrix_ci.py select --base "$BASE_SHA" --output "$RUNNER_TEMP/matrix-selection.json"
+
+    - name: Build local test server
+      env:
+        CGO_ENABLED: '1'
+      run: go build -o "$RUNNER_TEMP/realworld-app" .
+
+    - name: Run bound and policy-observation matrix variants
+      id: matrix_runtime
+      continue-on-error: true
+      run: python3 security/matrix_runtime.py --binary "$RUNNER_TEMP/realworld-app" --selection "$RUNNER_TEMP/matrix-selection.json" --output "$RUNNER_TEMP/matrix-runtime.json"
+
+    - name: Check matrix sensitivity on disposable source copies
+      id: matrix_sensitivity
+      if: always()
+      continue-on-error: true
+      run: python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --selection "$RUNNER_TEMP/matrix-selection.json" --output "$RUNNER_TEMP/matrix-sensitivity.json"
+
+    - name: Publish matrix status and enforce bound results
+      if: always()
+      run: python3 security/matrix_report.py --selection "$RUNNER_TEMP/matrix-selection.json" --runtime "$RUNNER_TEMP/matrix-runtime.json" --sensitivity "$RUNNER_TEMP/matrix-sensitivity.json" --json-out "$RUNNER_TEMP/matrix-status.json" --markdown-out "$RUNNER_TEMP/matrix-status.md"
+
+    - name: Upload matrix evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: matrix-appsec-evidence
+        path: |
+          ${{ runner.temp }}/matrix-*.json
+          ${{ runner.temp }}/matrix-status.md
+        if-no-files-found: warn

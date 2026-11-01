@@ -129,7 +129,7 @@ var unauthRequestTests = []struct {
 		"POST",
 		`{"user":{"username": "wangzitian0","email": "wzt@gg.cn","password": "jakejxke"}}`,
 		http.StatusUnprocessableEntity,
-		`{"errors":{"database":"UNIQUE constraint failed: user_models.email"}}`,
+		`{"errors":{"database":"operation failed"}}`,
 		"duplicated data and should return StatusUnprocessableEntity",
 	},
 	{
@@ -357,7 +357,7 @@ var unauthRequestTests = []struct {
 		"PUT",
 		`{"user":{"username": "wangzitian0","email": "wzt@gg.cn","password": "jakejxke"}}`,
 		http.StatusUnprocessableEntity,
-		`{"errors":{"database":"WHERE conditions required"}}`,
+		`{"errors":{"database":"operation failed"}}`,
 		"cheat validator and test database connecting error for user update",
 	},
 	{
@@ -373,7 +373,7 @@ var unauthRequestTests = []struct {
 		"POST",
 		``,
 		http.StatusUnprocessableEntity,
-		`{"errors":{"database":"no such table: follow_models"}}`,
+		`{"errors":{"database":"operation failed"}}`,
 		"test database error for following",
 	},
 	{
@@ -384,7 +384,7 @@ var unauthRequestTests = []struct {
 		"DELETE",
 		``,
 		http.StatusUnprocessableEntity,
-		`{"errors":{"database":"no such table: follow_models"}}`,
+		`{"errors":{"database":"operation failed"}}`,
 		"test database error for canceling following",
 	},
 	{

@@ -64,6 +64,18 @@ func GetArticleUserModel(userModel users.UserModel) ArticleUserModel {
 	return articleUserModel
 }
 
+// FindArticleUserModel is the read-only counterpart used by GET handlers and
+// serializers. A read must not create an author/favorite identity row.
+func FindArticleUserModel(userModel users.UserModel) ArticleUserModel {
+	var articleUserModel ArticleUserModel
+	if userModel.ID == 0 {
+		return articleUserModel
+	}
+	common.GetDB().Where("user_model_id = ?", userModel.ID).First(&articleUserModel)
+	articleUserModel.UserModel = userModel
+	return articleUserModel
+}
+
 func (article ArticleModel) favoritesCount() uint {
 	db := common.GetDB()
 	var count int64
@@ -74,6 +86,9 @@ func (article ArticleModel) favoritesCount() uint {
 }
 
 func (article ArticleModel) isFavoriteBy(user ArticleUserModel) bool {
+	if user.ID == 0 {
+		return false
+	}
 	db := common.GetDB()
 	var favorite FavoriteModel
 	db.Where(FavoriteModel{
@@ -174,20 +189,33 @@ func getAllTags() ([]TagModel, error) {
 	return models, err
 }
 
+const maxArticlePageSize = 100
+const maxArticleOffset = 10000
+
+func articlePagination(limit, offset string) (int, int) {
+	pageSize, err := strconv.Atoi(limit)
+	if err != nil || pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > maxArticlePageSize {
+		pageSize = maxArticlePageSize
+	}
+	start, err := strconv.Atoi(offset)
+	if err != nil || start < 0 {
+		start = 0
+	}
+	if start > maxArticleOffset {
+		start = maxArticleOffset
+	}
+	return pageSize, start
+}
+
 func FindManyArticle(tag, author, limit, offset, favorited string) ([]ArticleModel, int, error) {
 	db := common.GetDB()
 	var models []ArticleModel
 	var count int
 
-	offset_int, errOffset := strconv.Atoi(offset)
-	if errOffset != nil {
-		offset_int = 0
-	}
-
-	limit_int, errLimit := strconv.Atoi(limit)
-	if errLimit != nil {
-		limit_int = 20
-	}
+	limit_int, offset_int := articlePagination(limit, offset)
 
 	tx := db.Begin()
 	if tag != "" {
@@ -213,7 +241,7 @@ func FindManyArticle(tag, author, limit, offset, favorited string) ([]ArticleMod
 	} else if author != "" {
 		var userModel users.UserModel
 		tx.Where(users.UserModel{Username: author}).First(&userModel)
-		articleUserModel := GetArticleUserModel(userModel)
+		articleUserModel := FindArticleUserModel(userModel)
 
 		if articleUserModel.ID != 0 {
 			count = int(tx.Model(&articleUserModel).Association("ArticleModels").Count())
@@ -235,7 +263,7 @@ func FindManyArticle(tag, author, limit, offset, favorited string) ([]ArticleMod
 	} else if favorited != "" {
 		var userModel users.UserModel
 		tx.Where(users.UserModel{Username: favorited}).First(&userModel)
-		articleUserModel := GetArticleUserModel(userModel)
+		articleUserModel := FindArticleUserModel(userModel)
 		if articleUserModel.ID != 0 {
 			var favoriteModels []FavoriteModel
 			tx.Where(FavoriteModel{
@@ -268,14 +296,7 @@ func (self *ArticleUserModel) GetArticleFeed(limit, offset string) ([]ArticleMod
 	models := make([]ArticleModel, 0)
 	var count int
 
-	offset_int, errOffset := strconv.Atoi(offset)
-	if errOffset != nil {
-		offset_int = 0
-	}
-	limit_int, errLimit := strconv.Atoi(limit)
-	if errLimit != nil {
-		limit_int = 20
-	}
+	limit_int, offset_int := articlePagination(limit, offset)
 
 	tx := db.Begin()
 	followings := self.UserModel.GetFollowings()
@@ -308,16 +329,20 @@ func (self *ArticleUserModel) GetArticleFeed(limit, offset string) ([]ArticleMod
 }
 
 func (model *ArticleModel) setTags(tags []string) error {
+	return model.setTagsUsing(common.GetDB(), tags)
+}
+
+func (model *ArticleModel) setTagsUsing(db *gorm.DB, tags []string) error {
 	if len(tags) == 0 {
 		model.Tags = []TagModel{}
 		return nil
 	}
 
-	db := common.GetDB()
-
 	// Batch fetch existing tags
 	var existingTags []TagModel
-	db.Where("tag IN ?", tags).Find(&existingTags)
+	if err := db.Where("tag IN ?", tags).Find(&existingTags).Error; err != nil {
+		return err
+	}
 
 	// Create a map for quick lookup
 	existingTagMap := make(map[string]TagModel)
@@ -328,6 +353,21 @@ func (model *ArticleModel) setTags(tags []string) error {
 	// Create missing tags and build final list
 	var tagList []TagModel
 	for _, tag := range tags {
+		if _, seen := existingTagMap[tag]; seen {
+			// Existing and repeated input tags should appear only once.
+			if len(tagList) > 0 {
+				duplicate := false
+				for _, item := range tagList {
+					if item.Tag == tag {
+						duplicate = true
+						break
+					}
+				}
+				if duplicate {
+					continue
+				}
+			}
+		}
 		if existing, ok := existingTagMap[tag]; ok {
 			tagList = append(tagList, existing)
 		} else {
@@ -343,10 +383,35 @@ func (model *ArticleModel) setTags(tags []string) error {
 				return err
 			}
 			tagList = append(tagList, newTag)
+			existingTagMap[tag] = newTag
 		}
 	}
 	model.Tags = tagList
 	return nil
+}
+
+func SaveArticleWithTags(model *ArticleModel, tags []string) error {
+	return common.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := model.setTagsUsing(tx, tags); err != nil {
+			return err
+		}
+		return tx.Save(model).Error
+	})
+}
+
+func (model *ArticleModel) UpdateWithTags(data ArticleModel, tags []string) error {
+	return common.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := data.setTagsUsing(tx, tags); err != nil {
+			return err
+		}
+		if err := tx.Model(model).Omit("Tags").Updates(data).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(model).Association("Tags").Replace(data.Tags); err != nil {
+			return err
+		}
+		return tx.Preload("Tags").First(model, model.ID).Error
+	})
 }
 
 func (model *ArticleModel) Update(data interface{}) error {

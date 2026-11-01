@@ -119,6 +119,9 @@ func (u UserModel) following(v UserModel) error {
 //
 //	followingBool = myUserModel.isFollowing(self.UserModel)
 func (u UserModel) isFollowing(v UserModel) bool {
+	if u.ID == 0 || v.ID == 0 {
+		return false
+	}
 	db := common.GetDB()
 	var follow FollowModel
 	db.Where(FollowModel{
@@ -141,6 +144,9 @@ func (u UserModel) unFollowing(v UserModel) error {
 //
 //	followings := userModel.GetFollowings()
 func (u UserModel) GetFollowings() []UserModel {
+	if u.ID == 0 {
+		return nil
+	}
 	db := common.GetDB()
 	var follows []FollowModel
 	var followings []UserModel

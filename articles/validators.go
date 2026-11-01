@@ -12,7 +12,7 @@ type ArticleModelValidator struct {
 		Title       string   `form:"title" json:"title" binding:"required,min=4"`
 		Description string   `form:"description" json:"description" binding:"required,max=2048"`
 		Body        string   `form:"body" json:"body" binding:"required,max=2048"`
-		Tags        []string `form:"tagList" json:"tagList"`
+		Tags        []string `form:"tagList" json:"tagList" binding:"max=32,dive,min=1,max=64"`
 	} `json:"article"`
 	articleModel ArticleModel `json:"-"`
 }
@@ -44,7 +44,6 @@ func (s *ArticleModelValidator) Bind(c *gin.Context) error {
 	s.articleModel.Description = s.Article.Description
 	s.articleModel.Body = s.Article.Body
 	s.articleModel.Author = GetArticleUserModel(myUserModel)
-	s.articleModel.setTags(s.Article.Tags)
 	return nil
 }
 

@@ -1348,7 +1348,7 @@ func TestSetTagsRaceCondition(t *testing.T) {
 	err := article.setTags([]string{"tag1", "tag2", "tag1"})
 	asserts.NoError(err, "setTags should handle duplicate tags")
 	// Should have 2 unique tags
-	asserts.Equal(3, len(article.Tags), "Should preserve all tags in list")
+	asserts.Equal(2, len(article.Tags), "Should deduplicate repeated tags")
 }
 
 func TestArticleFeedWithEmptyFollowings(t *testing.T) {

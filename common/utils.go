@@ -3,8 +3,11 @@ package common
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,14 +44,31 @@ func RandInt() int {
 const JWTSecret = "A String Very Very Very Strong!!@##$!@#$"      // #nosec G101
 const RandomPassword = "A String Very Very Very Random!!@##$!@#4" // #nosec G101
 
+// JWTSigningKey uses the configured key. The legacy development key is never
+// accepted in release mode.
+func JWTSigningKey() ([]byte, error) {
+	if key := os.Getenv("JWT_SECRET"); key != "" {
+		return []byte(key), nil
+	}
+	if gin.Mode() == gin.ReleaseMode {
+		return nil, errors.New("JWT_SECRET is required in release mode")
+	}
+	return []byte(JWTSecret), nil
+}
+
 // A Util function to generate jwt_token which can be used in the request header
 func GenToken(id uint) string {
+	key, err := JWTSigningKey()
+	if err != nil {
+		fmt.Printf("failed to load JWT signing key: %v\n", err)
+		return ""
+	}
 	jwt_token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":  id,
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
 	})
 	// Sign and get the complete encoded token as a string
-	token, err := jwt_token.SignedString([]byte(JWTSecret))
+	token, err := jwt_token.SignedString(key)
 	if err != nil {
 		fmt.Printf("failed to sign JWT token for id %d: %v\n", id, err)
 		return ""
@@ -68,7 +88,11 @@ type CommonError struct {
 func NewValidatorError(err error) CommonError {
 	res := CommonError{}
 	res.Errors = make(map[string]interface{})
-	errs := err.(validator.ValidationErrors)
+	var errs validator.ValidationErrors
+	if !errors.As(err, &errs) {
+		res.Errors["body"] = "invalid request"
+		return res
+	}
 	for _, v := range errs {
 		// can translate each error one at a time.
 		//fmt.Println("gg",v.NameNamespace)
@@ -86,7 +110,11 @@ func NewValidatorError(err error) CommonError {
 func NewError(key string, err error) CommonError {
 	res := CommonError{}
 	res.Errors = make(map[string]interface{})
-	res.Errors[key] = err.Error()
+	if key == "database" {
+		res.Errors[key] = "operation failed"
+	} else {
+		res.Errors[key] = err.Error()
+	}
 	return res
 }
 
@@ -94,6 +122,7 @@ func NewError(key string, err error) CommonError {
 // I don't want to auto return 400 when error happened.
 // origin function is here: https://github.com/gin-gonic/gin/blob/master/context.go
 func Bind(c *gin.Context, obj interface{}) error {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
 	b := binding.Default(c.Request.Method, c.ContentType())
 	return c.ShouldBindWith(obj, b)
 }
