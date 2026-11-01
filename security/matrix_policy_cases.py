@@ -224,6 +224,19 @@ def resource_01(app, f, vid):
         need(status == 200 and len(data["articles"]) == 20 and data["articlesCount"] == 25,
              f"ordinary limit=20 response: HTTP {status}, size={len(data.get('articles', []))}")
         return "ordinary limit=20 returned 20 of 25 articles"
+    if vid.endswith("P02"):
+        make_resource_fixture(app, f)
+        before = app.snapshot()
+        plain_status, plain = app.call("GET", "/api/articles?limit=5&offset=2")
+        spaced_status, spaced = app.call("GET", "/api/articles?limit=%205%20&offset=%202%20")
+        need(plain_status == spaced_status == 200
+             and plain["articlesCount"] == spaced["articlesCount"] == 25
+             and len(plain["articles"]) == len(spaced["articles"]) == 5
+             and [item["slug"] for item in plain["articles"]] ==
+                 [item["slug"] for item in spaced["articles"]]
+             and app.snapshot() == before,
+             f"spaced pagination differed from numeric control: plain={plain_status}/{len(plain.get('articles', []))}, spaced={spaced_status}/{len(spaced.get('articles', []))}")
+        return "spaced limit and offset matched the numeric control without database changes"
     make_resource_fixture(app, f, total=105)
     large_status, large = app.call("GET", "/api/articles?limit=1000000&offset=0")
     negative_status, negative = app.call("GET", "/api/articles?limit=-1&offset=-1")

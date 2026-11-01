@@ -2,6 +2,7 @@ package articles
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gothinkster/golang-gin-realworld-example-app/common"
 	"github.com/gothinkster/golang-gin-realworld-example-app/users"
@@ -193,14 +194,14 @@ const maxArticlePageSize = 100
 const maxArticleOffset = 10000
 
 func articlePagination(limit, offset string) (int, int) {
-	pageSize, err := strconv.Atoi(limit)
+	pageSize, err := strconv.Atoi(strings.TrimSpace(limit))
 	if err != nil || pageSize < 1 {
 		pageSize = 20
 	}
 	if pageSize > maxArticlePageSize {
 		pageSize = maxArticlePageSize
 	}
-	start, err := strconv.Atoi(offset)
+	start, err := strconv.Atoi(strings.TrimSpace(offset))
 	if err != nil || start < 0 {
 		start = 0
 	}

@@ -2752,6 +2752,12 @@
           "execution": "NOT_RUN"
         },
         {
+          "id": "RW-RESOURCE-01-P02",
+          "kind": "CONTROL",
+          "scenario_and_expected": "limit и offset с пробелами по краям дают тот же пятиэлементный результат, что и числовой контроль, без изменения БД.",
+          "execution": "NOT_RUN"
+        },
+        {
           "id": "RW-RESOURCE-01-N01",
           "kind": "NEGATIVE",
           "scenario_and_expected": "Передать очень большой или отрицательный limit/offset; приложение нормализует/отклоняет их и не возвращает неограниченный набор.",

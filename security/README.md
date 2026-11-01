@@ -8,9 +8,9 @@ rules that were previously held are now explicit in [POLICY.md](POLICY.md).
 
 ## What is enforced now
 
-- `matrix_ci.py` validates 30 matrix definitions, 159 planned variant IDs,
+- `matrix_ci.py` validates 30 matrix definitions, 160 planned variant IDs,
   source references, route coverage, bindings, and change-to-matrix mapping.
-- `matrix_runtime.py` runs all 159 variants in 30 bound matrices against the
+- `matrix_runtime.py` runs all 160 variants in 30 bound matrices against the
   real local HTTP server. Each variant gets a fresh SQLite database with
   synthetic users; write checks compare HTTP and DB state.
 - `matrix_sensitivity.py` builds 30 disposable source mutants. Each matrix has
@@ -28,8 +28,10 @@ rules that were previously held are now explicit in [POLICY.md](POLICY.md).
   repaired variant also fails until its stale baseline entry is removed. The
   report keeps accepted failures visible as `KNOWN_FAIL`.
 
-The latest local runtime run completed all 159 variants: 153 passed and 6
-matched the reviewed known-failure baseline. The six failures are in four
+The full local run before the pagination experiment completed 159 variants:
+153 passed and 6 matched the reviewed known-failure baseline. The experiment
+adds `RW-RESOURCE-01-P02`; its result is recorded in CI evidence. The six
+baseline failures are in four
 matrices (`AUTH-02`, `USER-01`, `ARTICLE-04`, `ARTICLE-07`); they remain visible
 as `KNOWN_FAIL` and are not fixed. All nine formerly held policy matrices
 passed their variants and their individual source-mutation probes. A green
