@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure tmp directory exists
-mkdir -p ./tmp
-
 # Clean up database
 rm -f ./data/gorm.db
 
-# Download Postman collection
-echo "Downloading Postman collection..."
-curl -L -s https://raw.githubusercontent.com/gothinkster/realworld/main/api/Conduit.postman_collection.json -o ./tmp/Conduit.postman_collection.json
+# Use the collection pinned in this repository. The old remote URL is gone.
+COLLECTION=./api/Conduit.postman_collection.json
+test -s "$COLLECTION"
 
 # Build the application
 echo "Building application..."
@@ -31,7 +28,7 @@ trap cleanup EXIT
 # Wait for server to be ready
 echo "Waiting for server to be ready..."
 for i in {1..30}; do
-    if curl -s http://localhost:8080/api/ping > /dev/null; then
+    if curl -fsS http://localhost:8080/api/ping/ > /dev/null; then
         echo "Server is up!"
         break
     fi
@@ -43,14 +40,14 @@ echo "Running API tests..."
 # Check if newman is available
 if ! command -v newman &> /dev/null; then
     echo "newman not found, trying npx..."
-    npx newman run ./tmp/Conduit.postman_collection.json \
+    npx newman run "$COLLECTION" \
       --global-var "APIURL=http://localhost:8080/api" \
       --global-var "EMAIL=test@example.com" \
       --global-var "PASSWORD=password" \
       --global-var "USERNAME=testuser" \
       --delay-request 50
 else
-    newman run ./tmp/Conduit.postman_collection.json \
+    newman run "$COLLECTION" \
       --global-var "APIURL=http://localhost:8080/api" \
       --global-var "EMAIL=test@example.com" \
       --global-var "PASSWORD=password" \

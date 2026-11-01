@@ -84,11 +84,13 @@ jobs:
       with:
         args: '-no-fail -fmt sarif -out results.sarif ./...'
     
-    - name: Upload SARIF file
+    - name: Keep scanner results in this repository
       if: always()
-      uses: github/codeql-action/upload-sarif@v3
+      uses: actions/upload-artifact@v4
       with:
-        sarif_file: results.sarif
+        name: gosec-sarif
+        path: results.sarif
+        if-no-files-found: error
 
   api-test:
     name: API Integration Test
