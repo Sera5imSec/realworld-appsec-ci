@@ -77,8 +77,10 @@ python3 security/matrix_sensitivity.py --binary /tmp/realworld-app --selection /
 python3 security/matrix_report.py --selection /tmp/matrix-selection.json --runtime /tmp/matrix-runtime.json --sensitivity /tmp/matrix-sensitivity.json --json-out /tmp/matrix-status.json --markdown-out /tmp/matrix-status.md
 ```
 
-The existing `.github/workflows/ci.yml` still runs its Go, lint, scanner,
-and API jobs. The new `matrix-appsec` job adds this matrix gate. This
-repository has no deployment workflow, so a deploy gate can be connected to
-the same job when a release/deployment pipeline exists. The GitHub-hosted job
-has not been run because these changes have not been pushed.
+The existing `.github/workflows/ci.yml` runs its Go, lint, scanner, and API
+jobs alongside `matrix-appsec`. The [default-branch CI run](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41345271013)
+passed. The isolated [pagination experiment](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41346717675)
+also passed with 160 scenarios. A [controlled tag-limit regression](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41478246898)
+failed the matrix gate, and its [revert](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41478756085)
+passed. This repository has no deployment workflow; the existing gate can be
+connected to a deployment pipeline when one is added.

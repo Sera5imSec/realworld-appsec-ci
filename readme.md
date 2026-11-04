@@ -1,3 +1,15 @@
+# RealWorld AppSec Boundary Matrices
+
+[![AppSec CI](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml)
+
+This research extension to the [Go/Gin RealWorld example](https://github.com/gothinkster/golang-gin-realworld-example-app) turns source-linked security rules into executable GitHub Actions checks. The default branch contains **30 boundary matrices and 159 HTTP scenarios** across the application's 19 canonical API routes. Each matrix has a normal control, a negative case, an observable result, and a representative sensitivity check using a disposable source change.
+
+The CI gate runs alongside Go tests, API tests, lint, and scanning. Six reviewed local deviations remain visible as `KNOWN_FAIL`; new or changed results fail the gate. The [matrix documentation](security/README.md), [catalog](security/matrices/catalog.json), and [policy](security/POLICY.md) describe the exact scope and evidence rules. These results concern the source checkout and synthetic test data, not a deployed service.
+
+The [pagination experiment](https://github.com/Sera5imSec/realworld-appsec-private/tree/experiment/resource-pagination-whitespace) adds one scenario (160 total). A separate [controlled regression](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41478246898) changed the article tag limit, failed `RW-RESOURCE-01-N02`, and [passed after the change was reverted](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41478756085).
+
+## Upstream application README
+
 # ![RealWorld Example App](logo.png)
 
 
