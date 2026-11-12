@@ -206,7 +206,7 @@ func ArticleCommentDelete(c *gin.Context) {
 		c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid id")))
 		return
 	}
-	_, err = FindOneArticle(&ArticleModel{Slug: c.Param("slug")})
+	articleModel, err := FindOneArticle(&ArticleModel{Slug: c.Param("slug")})
 	if err != nil {
 		c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid slug")))
 		return
@@ -214,11 +214,10 @@ func ArticleCommentDelete(c *gin.Context) {
 	id := uint(id64)
 	commentModel, err := FindOneComment(&CommentModel{Model: gorm.Model{ID: id}})
 	if err == nil {
-		// Controlled CI test: the article/comment binding check is intentionally disabled.
-		// if commentModel.ArticleID != articleModel.ID {
-		// 	c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid id for article")))
-		// 	return
-		// }
+		if commentModel.ArticleID != articleModel.ID {
+			c.JSON(http.StatusNotFound, common.NewError("comment", errors.New("Invalid id for article")))
+			return
+		}
 		// Comment exists, check authorization
 		myUserModel := c.MustGet("my_user_model").(users.UserModel)
 		articleUserModel := GetArticleUserModel(myUserModel)
