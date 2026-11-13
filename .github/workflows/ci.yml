@@ -2,6 +2,8 @@ name: CI
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'
   push:
     branches: [ master, main ]
   pull_request:
@@ -10,6 +12,7 @@ on:
 jobs:
   test:
     name: Test
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     
     permissions:
@@ -42,6 +45,7 @@ jobs:
     
   lint:
     name: Lint
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     
     permissions:
@@ -64,6 +68,7 @@ jobs:
 
   security:
     name: Security Scan
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     
     permissions:
@@ -94,6 +99,7 @@ jobs:
 
   api-test:
     name: API Integration Test
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     
     permissions:
@@ -155,7 +161,13 @@ jobs:
     - name: Select matrices changed by this commit
       env:
         BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-      run: python3 security/matrix_ci.py select --base "$BASE_SHA" --output "$RUNNER_TEMP/matrix-selection.json"
+        FULL_RUN: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+      run: |
+        if [ "$FULL_RUN" = "true" ]; then
+          python3 security/matrix_ci.py select --full --output "$RUNNER_TEMP/matrix-selection.json"
+        else
+          python3 security/matrix_ci.py select --base "$BASE_SHA" --output "$RUNNER_TEMP/matrix-selection.json"
+        fi
 
     - name: Build local test server
       env:
