@@ -258,3 +258,5 @@ func TagList(c *gin.Context) {
 	serializer := TagsSerializer{c, tagModels}
 	c.JSON(http.StatusOK, gin.H{"tags": serializer.Response()})
 }
+
+// CI selection smoke: this comment does not change route behavior.
