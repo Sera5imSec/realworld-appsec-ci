@@ -20,6 +20,9 @@ BINDINGS = ROOT / "security" / "matrices" / "bindings.json"
 ACCEPTED_FAILURES = ROOT / "security" / "matrices" / "accepted_failures.json"
 CI_FILES = {"security/matrices/catalog.json", "security/matrix_ci.py", ".github/workflows/ci.yml"}
 GO_DEPENDENCIES = {"go.mod", "go.sum", "go.work", "go.work.sum"}
+ARTICLE_ROUTE_FILES = {
+    "articles/routers.go", "articles/serializers.go", "articles/validators.go",
+}
 
 
 def load_catalog() -> dict:
@@ -154,19 +157,34 @@ def changed_paths(base: str | None) -> list[str]:
     return sorted(set(result.stdout.splitlines()))
 
 
-def select(catalog: dict, changed: list[str]) -> dict:
+def select(catalog: dict, changed: list[str], *, full: bool = False) -> dict:
     matrices = catalog["matrices"]
     all_ids = {m["id"] for m in matrices}
     selected: set[str] = set()
-    unmapped: list[str] = []
-    if not changed or any(p in CI_FILES or p in GO_DEPENDENCIES or p.startswith("security/") for p in changed):
+    production_paths = [path for path in changed if production_go(path)]
+    mapped = {
+        path: {m["id"] for m in matrices if path in m["ci_watch_seed"]}
+        for path in production_paths
+    }
+    unmapped = sorted(path for path, matches in mapped.items() if not matches)
+    # These files only serve article/tag routes. Select every matrix that can
+    # reach those routes, not just the rows that name the changed source file.
+    # Shared code (including the article DB model) still requires a full run.
+    article_route_ids = {
+        m["id"] for m in matrices
+        if any(route.split(" ", 1)[1].startswith(("/api/articles", "/api/tags"))
+               for route in m["reach"])
+    }
+    if full or not changed or any(
+        p in CI_FILES or p in GO_DEPENDENCIES or p.startswith("security/")
+        for p in changed
+    ):
         selected = all_ids
     else:
-        for path in changed:
-            if production_go(path):
-                matched = {m["id"] for m in matrices if path in m["ci_watch_seed"]}
-                if not matched:
-                    unmapped.append(path)
+        for path in production_paths:
+            if path in ARTICLE_ROUTE_FILES:
+                selected.update(article_route_ids | mapped[path])
+            else:
                 selected = all_ids
     by_id = {m["id"]: m for m in matrices}
     return {
@@ -182,6 +200,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("validate", "select"))
     parser.add_argument("--base", help="base commit for PR/push selection")
+    parser.add_argument("--full", action="store_true", help="run every matrix regardless of changed files")
     parser.add_argument("--output", type=Path, help="write JSON selection")
     args = parser.parse_args()
     try:
@@ -195,7 +214,7 @@ def main() -> int:
             print(f"VALID: {len(catalog['matrices'])} matrices, "
                   f"{sum(len(m['variants']) for m in catalog['matrices'])} planned variants")
             return 0
-        selection = select(catalog, changed_paths(args.base))
+        selection = select(catalog, [] if args.full else changed_paths(args.base), full=args.full)
         result = json.dumps(selection, ensure_ascii=False, indent=2) + "\n"
         if args.output:
             args.output.write_text(result, encoding="utf-8")

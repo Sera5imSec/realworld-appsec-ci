@@ -10,10 +10,12 @@ rules that were previously held are now explicit in [POLICY.md](POLICY.md).
 
 - `matrix_ci.py` validates 30 matrix definitions, 159 planned variant IDs,
   source references, route coverage, bindings, and change-to-matrix mapping.
-- `matrix_runtime.py` runs all 159 variants in 30 bound matrices against the
-  real local HTTP server. Each variant gets a fresh SQLite database with
+- `matrix_runtime.py` runs the selected matrices' variants against the real
+  local HTTP server (159 variants across all 30 matrices in a full run). Each
+  variant gets a fresh SQLite database with
   synthetic users; write checks compare HTTP and DB state.
-- `matrix_sensitivity.py` builds 30 disposable source mutants. Each matrix has
+- `matrix_sensitivity.py` builds one disposable source mutant per selected
+  matrix (30 in a full run). Each matrix has
   a probe that must notice a controlled regression. Production source is not
   changed by the sensitivity run. One representative variant is probed per
   matrix; this does not independently confirm every failing variant.
@@ -52,14 +54,20 @@ stopped creating database rows.
 ## Change selection
 
 On PRs and pushes, the workflow compares changed files with the base commit.
-Any production Go file, Go dependency manifest, matrix catalog, or CI script
-selects all 30 matrices. A new production Go file without a catalog mapping
-fails selection. Documentation-only and Go test-only changes do not run this
-matrix job's runtime cases; the repository's other test jobs still run.
+Changes to article routers, serializers, or validators select all matrices that
+reach an article or tag route (currently 23), including cross-cutting auth,
+input, and route checks. Article models, shared/user/startup Go code, Go
+dependencies, and CI/security files select all 30 because they can affect
+other routes or the gate itself. A new production Go file without a catalog
+mapping fails selection, even when another changed file triggers a full run.
+Documentation-only and Go test-only changes do not run this matrix job's
+runtime cases; the repository's other test jobs still run.
 
-`ci_watch_seed` is a source ownership map, not a selective-execution shortcut.
-Running the full matrix set for production changes avoids missing transitive
-dependencies that the seed map does not yet describe.
+Each selected matrix runs its runtime variants and one representative source
+mutation probe. A weekly Sunday 03:00 UTC schedule and manual workflow
+dispatch select all 30. The selector uses `ci_watch_seed` to require source
+ownership; it does not assume that file-level ownership covers transitive
+dependencies. Shared code therefore keeps the full-run fallback.
 
 ## Local reproduction
 

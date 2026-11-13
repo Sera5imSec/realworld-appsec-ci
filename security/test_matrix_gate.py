@@ -50,15 +50,28 @@ def report_for(matrix_id: str, results: list[str], sensitivity: list[dict]):
 
 
 class MatrixGateTest(unittest.TestCase):
-    def test_dependency_and_source_changes_cannot_skip_matrices(self):
+    def test_selection_keeps_shared_code_full_and_article_routes_scoped(self):
         all_count = len(BY_ID)
-        for path in ("go.mod", "go.sum", "users/routers.go"):
+        for path in ("go.mod", "go.sum", "users/routers.go", "common/utils.go",
+                     "articles/models.go", "hello.go"):
             with self.subTest(path=path):
                 self.assertEqual(len(matrix_ci.select(CATALOG, [path])["selected"]), all_count)
+        article = matrix_ci.select(CATALOG, ["articles/routers.go"])
+        self.assertEqual(len(article["selected"]), 23)
+        self.assertIn("RW-COMMENT-03", article["selected"])
+        self.assertIn("RW-AUTH-01", article["selected"])
+        self.assertNotIn("RW-USER-01", article["selected"])
+        self.assertEqual(matrix_ci.select(CATALOG, ["articles/validators.go"])["selected"],
+                         article["selected"])
+        self.assertEqual(len(matrix_ci.select(CATALOG, ["articles/routers.go", "users/models.go"])["selected"]),
+                         all_count)
         new_source = matrix_ci.select(CATALOG, ["newpkg/guard.go"])
         self.assertEqual(len(new_source["selected"]), all_count)
         self.assertEqual(new_source["unmapped_production_files"], ["newpkg/guard.go"])
+        mixed = matrix_ci.select(CATALOG, ["security/matrix_ci.py", "newpkg/guard.go"])
+        self.assertEqual(mixed["unmapped_production_files"], ["newpkg/guard.go"])
         self.assertEqual(matrix_ci.select(CATALOG, ["README.md"])["selected"], [])
+        self.assertEqual(len(matrix_ci.select(CATALOG, ["README.md"], full=True)["selected"]), all_count)
 
     def test_bound_matrix_needs_every_result_and_valid_sensitivity(self):
         matrix_id = "RW-AUTH-01"
