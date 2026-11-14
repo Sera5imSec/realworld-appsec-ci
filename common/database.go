@@ -111,3 +111,5 @@ func TestDBFree(test_db *gorm.DB) error {
 func GetDB() *gorm.DB {
 	return DB
 }
+
+// CI selection smoke: no database behavior is changed.
