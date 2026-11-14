@@ -10,6 +10,8 @@ rules that were previously held are now explicit in [POLICY.md](POLICY.md).
 
 - `matrix_ci.py` validates 30 matrix definitions, 159 planned variant IDs,
   source references, route coverage, bindings, and change-to-matrix mapping.
+  It also inventories every non-test Go file: each must have a matrix watch
+  or an explicit full-run classification before CI can proceed.
 - `matrix_runtime.py` runs the selected matrices' variants against the real
   local HTTP server (159 variants across all 30 matrices in a full run). Each
   variant gets a fresh SQLite database with
@@ -58,9 +60,13 @@ Changes to article routers, serializers, or validators select all matrices that
 reach an article or tag route (currently 23), including cross-cutting auth,
 input, and route checks. Article models, shared/user/startup Go code, Go
 dependencies, and CI/security files select all 30 because they can affect
-other routes or the gate itself. A new production Go file without a catalog
-mapping fails selection, even when another changed file triggers a full run.
-Documentation-only and Go test-only changes do not run this matrix job's
+other routes or the gate itself. A new production Go file without a matrix
+watch or an explicit full-run classification fails validation before selection.
+Existing shared database code, compiled test helpers, and package documentation
+are explicitly classified for a full run. The catalog validator also fails if
+any production Go file lacks a classification, even when that file was not
+changed in the current PR.
+Non-Go documentation-only and Go test-only changes do not run this matrix job's
 runtime cases; the repository's other test jobs still run.
 
 Each selected matrix runs its runtime variants and one representative source

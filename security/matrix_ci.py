@@ -23,6 +23,15 @@ GO_DEPENDENCIES = {"go.mod", "go.sum", "go.work", "go.work.sum"}
 ARTICLE_ROUTE_FILES = {
     "articles/routers.go", "articles/serializers.go", "articles/validators.go",
 }
+# These existing Go files have no direct matrix source reference. Changes to
+# them require the full gate until a narrower dependency is established.
+FULL_RUN_SOURCE_FILES = {
+    "common/database.go": "shared database initialization and connection",
+    "common/test_helpers.go": "compiled common-package test helpers",
+    "doc.go": "package documentation",
+    "articles/doc.go": "package documentation",
+    "users/doc.go": "package documentation",
+}
 
 
 def load_catalog() -> dict:
@@ -32,6 +41,27 @@ def load_catalog() -> dict:
 def production_go(path: str) -> bool:
     p = Path(path)
     return p.suffix == ".go" and not p.name.endswith("_test.go")
+
+
+def source_inventory_errors(catalog: dict, root: Path = ROOT,
+                            full_run_files: dict[str, str] | None = None) -> list[str]:
+    full_run_files = FULL_RUN_SOURCE_FILES if full_run_files is None else full_run_files
+    source_files = {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*.go")
+        if production_go(path.name) and ".git" not in path.parts
+    }
+    matrix_watches = {
+        path for matrix in catalog["matrices"]
+        for path in matrix.get("ci_watch_seed", [])
+    }
+    classified = matrix_watches | set(full_run_files)
+    errors = []
+    for path in sorted(source_files - classified):
+        errors.append(f"production Go source has no CI coverage decision: {path}")
+    for path in sorted(classified - source_files):
+        errors.append(f"stale CI source classification: {path}")
+    return errors
 
 
 def validate(catalog: dict) -> list[str]:
@@ -82,6 +112,7 @@ def validate(catalog: dict) -> list[str]:
                 errors.append(f"{mid}: stale source ref {ref}")
         if not source_paths <= set(m.get("ci_watch_seed", [])):
             errors.append(f"{mid}: source absent from CI watch seed")
+    errors.extend(source_inventory_errors(catalog))
     if len(variant_ids) != len(set(variant_ids)):
         errors.append("duplicate variant ID")
     coverage = {r["route"]: r["matrices"] for r in catalog.get("route_coverage", [])}
@@ -163,7 +194,8 @@ def select(catalog: dict, changed: list[str], *, full: bool = False) -> dict:
     selected: set[str] = set()
     production_paths = [path for path in changed if production_go(path)]
     mapped = {
-        path: {m["id"] for m in matrices if path in m["ci_watch_seed"]}
+        path: (all_ids if path in FULL_RUN_SOURCE_FILES else
+               {m["id"] for m in matrices if path in m["ci_watch_seed"]})
         for path in production_paths
     }
     unmapped = sorted(path for path, matches in mapped.items() if not matches)
