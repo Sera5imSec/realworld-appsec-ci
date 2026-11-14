@@ -50,12 +50,28 @@ def report_for(matrix_id: str, results: list[str], sensitivity: list[dict]):
 
 
 class MatrixGateTest(unittest.TestCase):
+    def test_source_inventory_blocks_unclassified_and_stale_go_files(self):
+        self.assertEqual(matrix_ci.source_inventory_errors(CATALOG), [])
+        with tempfile.TemporaryDirectory(prefix="matrix-source-inventory-") as tmp:
+            root = Path(tmp)
+            catalog = {"matrices": [{"ci_watch_seed": ["covered.go"]}]}
+            (root / "covered.go").write_text("package sample\n", encoding="utf-8")
+            self.assertEqual(matrix_ci.source_inventory_errors(catalog, root, {}), [])
+            (root / "unclassified.go").write_text("package sample\n", encoding="utf-8")
+            self.assertIn("production Go source has no CI coverage decision: unclassified.go",
+                          matrix_ci.source_inventory_errors(catalog, root, {}))
+            (root / "covered.go").unlink()
+            self.assertIn("stale CI source classification: covered.go",
+                          matrix_ci.source_inventory_errors(catalog, root, {}))
+
     def test_selection_keeps_shared_code_full_and_article_routes_scoped(self):
         all_count = len(BY_ID)
         for path in ("go.mod", "go.sum", "users/routers.go", "common/utils.go",
-                     "articles/models.go", "hello.go"):
+                     "articles/models.go", "hello.go", *matrix_ci.FULL_RUN_SOURCE_FILES):
             with self.subTest(path=path):
-                self.assertEqual(len(matrix_ci.select(CATALOG, [path])["selected"]), all_count)
+                selected = matrix_ci.select(CATALOG, [path])
+                self.assertEqual(len(selected["selected"]), all_count)
+                self.assertEqual(selected["unmapped_production_files"], [])
         article = matrix_ci.select(CATALOG, ["articles/routers.go"])
         self.assertEqual(len(article["selected"]), 23)
         self.assertIn("RW-COMMENT-03", article["selected"])
