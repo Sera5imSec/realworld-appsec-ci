@@ -75,6 +75,59 @@ dispatch select all 30. The selector uses `ci_watch_seed` to require source
 ownership; it does not assume that file-level ownership covers transitive
 dependencies. Shared code therefore keeps the full-run fallback.
 
+## Reviewing changes inside Go files
+
+The PR gate also compares named functions, route registrations, and top-level
+declarations at the merge base and PR head. It writes `boundary-change-impact.json`
+and `boundary-review.json`, plus a short Markdown review summary. Changed
+functions are linked to **candidate** matrix IDs and variant IDs using source
+references inside their current span; file watches are a broader fallback.
+Route candidates use method/path suffixes, then file watches. These links are
+review prompts, not evidence that a new security rule is already tested.
+
+- Every code change inside a named function, every changed route registration,
+  and every top-level code change needs an explicit decision in
+  `matrices/code_decisions.json` before the gate passes. The decision is per
+  changed region, not per edited line. Formatting and ordinary comment edits
+  are ignored; the gate does not require a new matrix for every code edit.
+- The decision is `existing_rule`, `add_variant`, `new_matrix`, or
+  `not_security`, with a short reason. Security decisions name real matrix and
+  variant IDs. The decision's `fingerprint` is the changed item's `after_hash`
+  from `boundary-change-impact.json`, or `before_hash` for a removal. This
+  binds the decision to the exact changed code or route registration.
+- An `add_variant` decision must name a variant newly added relative to the
+  PR base catalog. A `new_matrix` decision must name a newly added matrix.
+  Reusing an old ID with either label fails review. Top-level changes use
+  `kind: "top_level"` and `symbol: "(outside named functions)"`.
+- The reviewer checks whether the existing test really reaches the changed
+  behavior. If the same rule has a new case, add a variant and its executable
+  binding. If there is a new obligation, add a matrix and executable tests.
+  CI validates IDs and results; it cannot decide the meaning of a code change
+  on its own. An ambiguous scanner input fails rather than silently omitting
+  the change.
+
+Example decision shape (replace IDs and fingerprint with those from the actual
+change and catalog):
+
+```json
+{
+  "kind": "function",
+  "path": "articles/routers.go",
+  "symbol": "ArticleCommentDelete",
+  "fingerprint": "<64-character after_hash>",
+  "decision": "existing_rule",
+  "matrix_ids": ["RW-COMMENT-03"],
+  "variant_ids": ["RW-COMMENT-03-N01"],
+  "reason": "The existing case checks that a comment belongs to the selected article."
+}
+```
+
+This is the second layer of source review. It does not narrow the existing
+23/30 matrix selector, and a passing gate does not imply that every new
+security obligation was automatically discovered. The development review
+starts at the changed behavior, maps it back to a rule and test, and records
+whether to reuse a matrix, add a case, or add a matrix.
+
 ## Local reproduction
 
 Run on Linux with Go 1.23+, a C compiler for SQLite/CGO, and Python 3.11+:

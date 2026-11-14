@@ -152,11 +152,19 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set up Node.js for Go change review
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Validate matrix catalog and bindings
       run: python3 security/matrix_ci.py validate
 
     - name: Check matrix gate integrity
       run: python3 -m unittest discover -s security -p 'test_matrix_gate.py'
+
+    - name: Check change review integrity
+      run: node --test security/test_change_impact.mjs security/test_boundary_review.mjs
 
     - name: Select matrices changed by this commit
       env:
@@ -168,6 +176,22 @@ jobs:
         else
           python3 security/matrix_ci.py select --base "$BASE_SHA" --output "$RUNNER_TEMP/matrix-selection.json"
         fi
+
+    - name: Review changed code within Go files
+      continue-on-error: true
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        FULL_RUN: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+      run: |
+        if [ "$FULL_RUN" = "true" ]; then
+          node security/change_impact.mjs --full --output "$RUNNER_TEMP/boundary-change-impact.json"
+        else
+          node security/change_impact.mjs --base "$BASE_SHA" --output "$RUNNER_TEMP/boundary-change-impact.json"
+        fi
+        review_status=0
+        node security/boundary_review.mjs --impact "$RUNNER_TEMP/boundary-change-impact.json" --output "$RUNNER_TEMP/boundary-review.json" --markdown-out "$RUNNER_TEMP/boundary-review.md" || review_status=$?
+        cat "$RUNNER_TEMP/boundary-review.md" >> "$GITHUB_STEP_SUMMARY"
+        exit "$review_status"
 
     - name: Build local test server
       env:
@@ -197,4 +221,10 @@ jobs:
         path: |
           ${{ runner.temp }}/matrix-*.json
           ${{ runner.temp }}/matrix-status.md
+          ${{ runner.temp }}/boundary-*.json
+          ${{ runner.temp }}/boundary-review.md
         if-no-files-found: warn
+
+    - name: Enforce code coverage decisions
+      if: always()
+      run: node security/boundary_review.mjs --impact "$RUNNER_TEMP/boundary-change-impact.json" --output "$RUNNER_TEMP/boundary-review.json" > /dev/null
