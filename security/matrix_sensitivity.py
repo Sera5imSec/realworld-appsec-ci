@@ -138,6 +138,10 @@ PROBES = {
                  "gorm.Open(sqlite.Open(dbPath), &gorm.Config{})",
                  "gorm.Open(sqlite.Open(\":memory:\"), &gorm.Config{})",
                  "RW-DB-01-N01"),
+    "RW-DB-02": ("hello.go", "Migrate",
+                 "return fmt.Errorf(\"articles migration: %w\", err)",
+                 "return nil",
+                 "RW-DB-02-N02"),
 }
 
 

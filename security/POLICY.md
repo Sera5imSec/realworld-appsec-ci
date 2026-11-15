@@ -16,8 +16,9 @@ deployed service. The catalog's API-spec checks remain separate.
 | `RW-ERROR-01` | Public database errors use a generic message. Malformed JSON receives structured 4xx; responses do not include SQL, table names, local paths, keys, or stack traces. |
 | `RW-READ-01` | GET handlers and serializers do not create or update domain rows. A missing viewer-specific row stays missing during reads. |
 | `RW-DB-01` | Startup uses the configured `DB_PATH`; the HTTP listener starts only after SQLite can be opened at that path. An invalid database path must stop startup. |
+| `RW-DB-02` | Startup completes user and article schema migration before the HTTP listener starts. A migration error must stop startup. |
 
-These ten rows are blocking only after their normal and negative variants pass
+These eleven rows are blocking only after their normal and negative variants pass
 and a disposable source mutation is detected for each row. A CI pass still
 reports any separately accepted known failures; those are not remediated by
 this policy.

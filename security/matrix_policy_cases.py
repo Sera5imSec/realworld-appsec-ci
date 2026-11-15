@@ -105,6 +105,47 @@ def db_01(local_app_type, binary, vid):
     return "invalid DB_PATH stopped server at SQLite open"
 
 
+def db_02(local_app_type, binary, vid):
+    if vid.endswith("P01"):
+        with local_app_type(binary) as app:
+            status, _ = app.call("GET", "/api/ping/")
+            with sqlite3.connect(app.db.as_uri() + "?mode=ro", uri=True) as db:
+                tables = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )}
+            required = {"user_models", "follow_models", "article_models", "comment_models"}
+            need(status == 200 and required <= tables,
+                 f"startup lacked migrated schema: ping={status}, tables={sorted(tables)}")
+        return "HTTP started after user and article schema migration"
+
+    with tempfile.TemporaryDirectory(prefix="realworld-migration-failure-") as tmp:
+        db_path = Path(tmp) / "conflicting-schema.db"
+        view_name = "user_models" if vid.endswith("N01") else "article_models"
+        stage = "users migration" if vid.endswith("N01") else "articles migration"
+        with sqlite3.connect(db_path) as db:
+            db.execute(f"CREATE VIEW {view_name} AS SELECT 1 AS id")
+        env = dict(os.environ, DB_PATH=str(db_path), PORT="0", GIN_MODE="release",
+                   JWT_SECRET="matrix-local-migration-key")
+        try:
+            result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, timeout=6, check=False)
+        except subprocess.TimeoutExpired:
+            need(False, f"server continued running after {stage} error")
+        need(result.returncode != 0 and "database migration failed:" in result.stdout
+             and stage in result.stdout,
+             f"migration error did not stop startup: exit={result.returncode}, "
+             f"migration_error={'database migration failed:' in result.stdout}, "
+             f"stage={stage in result.stdout}")
+        with sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True) as db:
+            conflicting_view = db.execute(
+                "SELECT type FROM sqlite_master WHERE name=?", (view_name,)
+            ).fetchone()
+        need(conflicting_view == ("view",),
+             f"migration failure fixture changed unexpectedly: {conflicting_view}")
+    return f"{stage} failure stopped startup before HTTP listener"
+
+
 def article_05(app, f, vid):
     if vid.endswith("P01"):
         item = create_article(app, f["alice"], "Matrix tagged article", tags=["matrix-new-tag"])
@@ -332,6 +373,8 @@ OBSERVED_CASES = {
 def run_policy_case(local_app_type, binary, matrix_id, variant_id):
     if matrix_id == "RW-DB-01":
         return db_01(local_app_type, binary, variant_id)
+    if matrix_id == "RW-DB-02":
+        return db_02(local_app_type, binary, variant_id)
     if matrix_id == "RW-CONFIG-01":
         return config_01(local_app_type, binary, variant_id)
     if matrix_id == "RW-READ-01":
@@ -343,3 +386,4 @@ def run_policy_case(local_app_type, binary, matrix_id, variant_id):
 
 OBSERVED_CASES.update({"RW-CONFIG-01": config_01, "RW-READ-01": read_01})
 OBSERVED_CASES["RW-DB-01"] = db_01
+OBSERVED_CASES["RW-DB-02"] = db_02
