@@ -9,12 +9,12 @@ evidence that every rule in that file has an executable oracle.
 
 | Source | Existing direct matrix families | Reverse-audit decision |
 | --- | --- | --- |
-| `hello.go` | ROUTE, AUTH-03, CONFIG; now DB-01 | Route/auth/JWT startup are tested; migration failure handling is not. |
+| `hello.go` | ROUTE, AUTH-03, CONFIG; now DB-01 and DB-02 | Route/auth/JWT startup, database opening, and migration failure handling have direct cases. |
 | `common/database.go` | None before this audit; now DB-01 | Configured DB path and failed open needed their own startup check. |
 | `common/utils.go` | AUTH, CONFIG, INPUT, RESOURCE, ERROR | Publicly reachable uses have direct scenarios; random helpers have Go unit tests and are not a separate trust boundary here. |
 | `common/test_helpers.go` | None | Test utilities are compiled but not called by production routes; no AppSec matrix is justified for them. |
 | `users/middlewares.go` | ROUTE, AUTH, CONFIG | Token extraction and request identity have direct cases; malformed/deleted-user failures are already recorded, not missing matrices. |
-| `users/models.go` | USER, PROFILE, FOLLOW, FEED | Password/identity/follow outcomes have HTTP and DB cases; the long-password failure is already recorded. |
+| `users/models.go` | USER, PROFILE, FOLLOW, FEED; now DB-02 | Password/identity/follow outcomes and migration errors have direct cases; the long-password failure is already recorded. |
 | `users/validators.go` | USER, INPUT | Registration/update/login validation has direct cases. |
 | `users/routers.go` | ROUTE, USER, PROFILE, FOLLOW, QUERY, ERROR | Public, optional and protected handlers have route and behavior cases. |
 | `users/serializers.go` | USER, PROFILE, ARTICLE | Field allowlists and viewer identity have response cases. |
@@ -34,12 +34,12 @@ evidence that every rule in that file has an executable oracle.
    both `RW-DB-01` variants passed and the path-ignoring mutation was detected.
    The artifact records 31 selected matrices, 161 runtime rows, 31 sensitivity
    probes, 27 `BOUND_PASS` and four matrices with accepted `KNOWN_FAIL` cases.
-2. **Migration errors — uncovered candidate.** `hello.go:Migrate` and
-   `users/models.go:AutoMigrate` discard migration errors. Existing tests check
-   the happy schema through fixtures, but none supplies a failing migration and
-   checks that the HTTP listener stays closed. This is a distinct obligation
-   from DB opening; it needs a fixture, an error-propagating implementation and
-   a sensitivity check before it can become a blocking matrix.
+2. **Migration errors — executable row added (`RW-DB-02`).**
+   `hello.go:Migrate` and `users/models.go:AutoMigrate` now propagate migration
+   errors before HTTP starts. A normal control checks schema tables directly;
+   two negative fixtures create conflicting SQLite views for user and article
+   migrations. The article path also has a disposable source mutation that
+   suppresses its error. CI evidence is recorded separately from this catalog.
 3. **Combined article filters and soft-delete relations — contract questions.**
    `FindManyArticle` uses `if/else if` for tag, author and favorited, so multiple
    filters do not compose. `ArticleDelete` soft-deletes the article without an

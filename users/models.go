@@ -42,11 +42,10 @@ type FollowModel struct {
 }
 
 // Migrate the schema of database if needed
-func AutoMigrate() {
+func AutoMigrate() error {
 	db := common.GetDB()
 
-	db.AutoMigrate(&UserModel{})
-	db.AutoMigrate(&FollowModel{})
+	return db.AutoMigrate(&UserModel{}, &FollowModel{})
 }
 
 // What's bcrypt? https://en.wikipedia.org/wiki/Bcrypt

@@ -2916,6 +2916,43 @@
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
       "note": "Reverse source-to-matrix audit; local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-DB-02",
+      "boundary": "SQLite schema migration -> HTTP listener",
+      "priority": "P1",
+      "basis": ["LOCAL_APPSEC_POLICY", "SOURCE_CONTRACT"],
+      "policy_hold": false,
+      "reach": ["GET /api/ping/"],
+      "source_refs": ["users/models.go:45", "hello.go:16", "hello.go:33"],
+      "ci_watch_seed": ["users/models.go", "hello.go"],
+      "obligation": "Сервер начинает принимать HTTP-запросы только после успешной миграции схем пользователей и статей. Ошибка миграции прерывает запуск.",
+      "variants": [
+        {
+          "id": "RW-DB-02-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "На новой временной SQLite базе сервер отвечает на ping, а пользовательские и статейные таблицы присутствуют в sqlite_master.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-DB-02-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "В заранее созданной SQLite базе конфликтующий VIEW user_models блокирует миграцию: процесс завершается с ошибкой до запуска HTTP listener.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-DB-02-N02",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "В заранее созданной SQLite базе конфликтующий VIEW article_models блокирует миграцию статей после успешной миграции пользователей: процесс завершается до запуска HTTP listener.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Для контроля — ping и прямой запрос к sqlite_master; при конфликте схемы — код завершения, журнал ошибки миграции и независимая проверка сохранности VIEW.",
+      "sensitivity_plan": "В одноразовой копии отключить остановку main при ошибке Migrate: отрицательный сценарий должен заметить, что сервер продолжил работу.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Reverse source-to-matrix audit; local AppSec rule: security/POLICY.md"
     }
   ],
   "route_coverage": [
