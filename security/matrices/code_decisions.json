@@ -1,4 +1,45 @@
 {
   "schema_version": 1,
-  "decisions": []
+  "decisions": [
+    {
+      "kind": "function",
+      "path": "hello.go",
+      "symbol": "Migrate",
+      "fingerprint": "5788985f71f80ae0c2528c1ff03a36fe32f0c04ce4fa3949d0a5fa7295bde034",
+      "decision": "new_matrix",
+      "matrix_ids": ["RW-DB-02"],
+      "variant_ids": ["RW-DB-02-P01", "RW-DB-02-N01", "RW-DB-02-N02"],
+      "reason": "Startup now propagates both user and article schema migration errors; the new matrix checks normal schema and both failure stages."
+    },
+    {
+      "kind": "function",
+      "path": "hello.go",
+      "symbol": "main",
+      "fingerprint": "09829aaa05fd10530152568af9c6440abcaa399e11fe2b5ca41bd1e5c1b80bfb",
+      "decision": "new_matrix",
+      "matrix_ids": ["RW-DB-02"],
+      "variant_ids": ["RW-DB-02-N01", "RW-DB-02-N02"],
+      "reason": "The listener must stay closed if Migrate returns an error; both conflicting-schema fixtures exercise this startup decision."
+    },
+    {
+      "kind": "function",
+      "path": "users/models.go",
+      "symbol": "AutoMigrate",
+      "fingerprint": "60fd5098abcc03b4df69c845b64029e5a86788e142ea5236067362fa8c3b08c5",
+      "decision": "new_matrix",
+      "matrix_ids": ["RW-DB-02"],
+      "variant_ids": ["RW-DB-02-P01", "RW-DB-02-N01"],
+      "reason": "User schema migration errors are returned to main; the view collision checks that the listener never starts."
+    },
+    {
+      "kind": "top_level",
+      "path": "hello.go",
+      "symbol": "(outside named functions)",
+      "fingerprint": "35dff29bfe9271c76d7701d8a6862c2d6add5891bd29ea664b3cd4da2eca0e20",
+      "decision": "not_security",
+      "matrix_ids": [],
+      "variant_ids": [],
+      "reason": "Only the fmt import changed outside the named functions; the migration behavior is reviewed under Migrate and main."
+    }
+  ]
 }
