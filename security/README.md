@@ -35,6 +35,9 @@ source rules have executable checks and which candidates still need a contract.
   repaired variant also fails until its stale baseline entry is removed. The
   report keeps accepted failures visible as `KNOWN_FAIL`.
 
+The reverse-audit [PR #7 run](https://github.com/Sera5imSec/realworld-appsec-ci/actions/runs/43715210087)
+completed all 161 variants and 31 sensitivity probes. The new DB-startup row
+passed both variants and detected its disposable path-ignoring mutation.
 The previous local runtime run completed 159 variants: 153 passed and 6
 matched the reviewed known-failure baseline. The six failures are in four
 matrices (`AUTH-02`, `USER-01`, `ARTICLE-04`, `ARTICLE-07`); they remain visible

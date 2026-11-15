@@ -30,8 +30,10 @@ evidence that every rule in that file has an executable oracle.
    `common/database.go` selected all matrices, but none tested DB opening.
    New control checks the configured SQLite file and migrated schema; negative
    case points `DB_PATH` at a directory and requires startup to stop. Its
-   disposable source mutation ignores the path. Runtime and mutation results
-   must be recorded before calling this row verified.
+   disposable source mutation ignores the path. In [PR #7's first CI run](https://github.com/Sera5imSec/realworld-appsec-ci/actions/runs/43715210087),
+   both `RW-DB-01` variants passed and the path-ignoring mutation was detected.
+   The artifact records 31 selected matrices, 161 runtime rows, 31 sensitivity
+   probes, 27 `BOUND_PASS` and four matrices with accepted `KNOWN_FAIL` cases.
 2. **Migration errors — uncovered candidate.** `hello.go:Migrate` and
    `users/models.go:AutoMigrate` discard migration errors. Existing tests check
    the happy schema through fixtures, but none supplies a failing migration and
