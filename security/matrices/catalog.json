@@ -2885,6 +2885,37 @@
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
       "note": "Local AppSec rule: security/POLICY.md"
+    },
+    {
+      "id": "RW-DB-01",
+      "boundary": "DB_PATH configuration -> SQLite startup -> HTTP listener",
+      "priority": "P1",
+      "basis": ["LOCAL_APPSEC_POLICY", "SOURCE_CONTRACT"],
+      "policy_hold": false,
+      "reach": ["GET /api/ping/"],
+      "source_refs": ["common/database.go:21", "common/database.go:49", "hello.go:29"],
+      "ci_watch_seed": ["common/database.go", "hello.go"],
+      "obligation": "Сервер использует настроенный DB_PATH и начинает принимать HTTP-запросы только после успешного открытия локальной SQLite БД; недопустимый путь БД не ведёт к запуску сервера.",
+      "variants": [
+        {
+          "id": "RW-DB-01-P01",
+          "kind": "CONTROL",
+          "scenario_and_expected": "На отдельном временном DB_PATH сервер отвечает на ping, а файл SQLite и таблица пользователей существуют именно по этому пути.",
+          "execution": "NOT_RUN"
+        },
+        {
+          "id": "RW-DB-01-N01",
+          "kind": "NEGATIVE",
+          "scenario_and_expected": "DB_PATH указывает на уже существующую директорию: сервер завершается с ошибкой открытия БД и не переходит в режим обслуживания HTTP.",
+          "execution": "NOT_RUN"
+        }
+      ],
+      "independent_oracle": "Ответ ping плюс прямое чтение sqlite_master по указанному DB_PATH; для неверного пути — код завершения процесса и запись ошибки открытия БД в локальном журнале.",
+      "sensitivity_plan": "В одноразовой копии заменить SQLite-путь на :memory:: проверка неверного DB_PATH должна заметить, что сервер продолжил запуск.",
+      "readiness": "DESCRIBED",
+      "gate_status": "NOT_READY",
+      "runtime_evidence": null,
+      "note": "Reverse source-to-matrix audit; local AppSec rule: security/POLICY.md"
     }
   ],
   "route_coverage": [

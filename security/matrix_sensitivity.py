@@ -134,6 +134,10 @@ PROBES = {
                    "common.GetDB().Where(\"user_model_id = ?\", userModel.ID).First(&articleUserModel)",
                    "common.GetDB().Where(\"user_model_id = ?\", userModel.ID).FirstOrCreate(&articleUserModel)",
                    "RW-READ-01-P01"),
+    "RW-DB-01": ("common/database.go", "Init",
+                 "gorm.Open(sqlite.Open(dbPath), &gorm.Config{})",
+                 "gorm.Open(sqlite.Open(\":memory:\"), &gorm.Config{})",
+                 "RW-DB-01-N01"),
 }
 
 
