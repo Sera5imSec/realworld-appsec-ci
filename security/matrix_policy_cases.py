@@ -7,7 +7,11 @@ approved local rule on this checkout. These rows block CI through bindings.
 from __future__ import annotations
 
 import json
+import os
 import secrets
+import sqlite3
+import subprocess
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -68,6 +72,37 @@ def config_01(local_app_type, binary, vid):
             status, _ = app.call("GET", "/api/user", token=known_source_key_token)
             need(status == 401, f"source fallback key accepted with configured key: HTTP {status}")
     return "JWT key followed configured value"
+
+
+def db_01(local_app_type, binary, vid):
+    if vid.endswith("P01"):
+        with local_app_type(binary) as app:
+            status, _ = app.call("GET", "/api/ping/")
+            need(status == 200 and app.db.is_file(),
+                 f"configured DB_PATH was not used: ping={status}, file={app.db.is_file()}")
+            with sqlite3.connect(app.db.as_uri() + "?mode=ro", uri=True) as db:
+                tables = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )}
+            need("user_models" in tables and "article_models" in tables,
+                 f"configured SQLite file lacks migrated tables: {sorted(tables)}")
+        return "HTTP started with migrated SQLite at configured DB_PATH"
+
+    with tempfile.TemporaryDirectory(prefix="realworld-invalid-db-") as tmp:
+        invalid_path = Path(tmp) / "already-a-directory"
+        invalid_path.mkdir()
+        env = dict(os.environ, DB_PATH=str(invalid_path), PORT="0",
+                   GIN_MODE="release", JWT_SECRET="matrix-local-db-startup-key")
+        try:
+            result = subprocess.run([str(binary.resolve())], cwd=ROOT, env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, timeout=6, check=False)
+        except subprocess.TimeoutExpired:
+            need(False, "server continued running with a directory as DB_PATH")
+        need(result.returncode != 0 and "db err: (Init)" in result.stdout,
+             f"invalid DB_PATH did not fail at SQLite open: exit={result.returncode}, "
+             f"db_error={'db err: (Init)' in result.stdout}")
+    return "invalid DB_PATH stopped server at SQLite open"
 
 
 def article_05(app, f, vid):
@@ -295,6 +330,8 @@ OBSERVED_CASES = {
 
 
 def run_policy_case(local_app_type, binary, matrix_id, variant_id):
+    if matrix_id == "RW-DB-01":
+        return db_01(local_app_type, binary, variant_id)
     if matrix_id == "RW-CONFIG-01":
         return config_01(local_app_type, binary, variant_id)
     if matrix_id == "RW-READ-01":
@@ -305,3 +342,4 @@ def run_policy_case(local_app_type, binary, matrix_id, variant_id):
 
 
 OBSERVED_CASES.update({"RW-CONFIG-01": config_01, "RW-READ-01": read_01})
+OBSERVED_CASES["RW-DB-01"] = db_01

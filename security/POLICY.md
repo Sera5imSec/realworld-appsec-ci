@@ -15,8 +15,9 @@ deployed service. The catalog's API-spec checks remain separate.
 | `RW-RESOURCE-01` | Article page size defaults to 20 and is capped at 100; negative page size/offset normalize to the defaults and offset is capped at 10000. An article accepts at most 32 tags, and JSON bodies above 64 KiB receive a controlled client error without database changes. |
 | `RW-ERROR-01` | Public database errors use a generic message. Malformed JSON receives structured 4xx; responses do not include SQL, table names, local paths, keys, or stack traces. |
 | `RW-READ-01` | GET handlers and serializers do not create or update domain rows. A missing viewer-specific row stays missing during reads. |
+| `RW-DB-01` | Startup uses the configured `DB_PATH`; the HTTP listener starts only after SQLite can be opened at that path. An invalid database path must stop startup. |
 
-All nine rows are blocking only after their normal and negative variants pass
+These ten rows are blocking only after their normal and negative variants pass
 and a disposable source mutation is detected for each row. A CI pass still
 reports any separately accepted known failures; those are not remediated by
 this policy.
