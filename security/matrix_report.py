@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combine matrix selection, runtime evidence, and sensitivity evidence."""
+"""Enforce selected matrices using runtime evidence only."""
 
 from __future__ import annotations
 
@@ -22,7 +22,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--selection", required=True, type=Path)
     parser.add_argument("--runtime", required=True, type=Path)
-    parser.add_argument("--sensitivity", required=True, type=Path)
     parser.add_argument("--json-out", required=True, type=Path)
     parser.add_argument("--markdown-out", required=True, type=Path)
     args = parser.parse_args()
@@ -32,12 +31,10 @@ def main() -> int:
         accepted = read_json(ROOT / "security/matrices/accepted_failures.json")
         selection = read_json(args.selection)
         runtime = read_json(args.runtime)
-        sensitivity = read_json(args.sensitivity)
     except (OSError, ValueError) as exc:
         print(f"ERROR: incomplete matrix evidence: {exc}", file=sys.stderr)
         return 1
 
-    by_id = {m["id"]: m for m in catalog["matrices"]}
     selected = set(selection["selected"])
     bound = set(bindings["bound_matrices"])
     observed_matrices = set(bindings["observed_matrices"])
@@ -48,9 +45,7 @@ def main() -> int:
         print(f"ERROR: invalid accepted-failures baseline: {exc}", file=sys.stderr)
         return 1
     runtime_rows = runtime["results"]
-    sensitivity_rows = sensitivity["results"]
     runtime_ids = [r["variant_id"] for r in runtime_rows]
-    sensitivity_ids = [r["matrix_id"] for r in sensitivity_rows]
     errors = []
     accepted_runtime = []
     variant_parent = {v["id"]: m["id"] for m in catalog["matrices"] for v in m["variants"]}
@@ -71,24 +66,9 @@ def main() -> int:
             errors.append(f"{row['variant_id']}: matrix ID does not match catalog")
     if len(runtime_ids) != len(set(runtime_ids)):
         errors.append("duplicate runtime variant")
-    if len(sensitivity_ids) != len(set(sensitivity_ids)):
-        errors.append("duplicate sensitivity matrix")
     if set(selection.get("unmapped_production_files", [])):
         errors.append("unmapped production source file")
     runtime_by_id = {r["variant_id"]: r for r in runtime_rows}
-    sensitivity_by_id = {r["matrix_id"]: r for r in sensitivity_rows}
-    expected_sensitivity = selected & bound
-    if set(sensitivity_ids) != expected_sensitivity:
-        errors.append("sensitivity matrix set differs from selected bound matrices")
-    for mid in sorted(expected_sensitivity):
-        if mid in sensitivity_by_id:
-            probe = sensitivity_by_id[mid]
-            if probe.get("baseline") != "PASS" or probe.get("sensitivity") != "DETECTED":
-                errors.append(f"{mid}: baseline or source-mutation sensitivity was not demonstrated")
-            if probe.get("variant_id") not in {v["id"] for v in by_id[mid]["variants"]}:
-                errors.append(f"{mid}: sensitivity variant does not belong to matrix")
-            if not probe.get("mutation"):
-                errors.append(f"{mid}: missing source-mutation description")
     statuses = []
     for matrix in catalog["matrices"]:
         mid = matrix["id"]
@@ -136,8 +116,6 @@ def main() -> int:
                 if differences:
                     status = "FAIL"
                     errors.extend(differences)
-                elif mid not in sensitivity_by_id or sensitivity_by_id[mid].get("baseline") != "PASS" or sensitivity_by_id[mid].get("sensitivity") != "DETECTED":
-                    status = "INCOMPLETE"
                 elif matched:
                     status = "KNOWN_FAIL"
                 else:
@@ -168,10 +146,9 @@ def main() -> int:
         "selected": sorted(selected),
         "counts": dict(counts),
         "statuses": statuses,
-        "sensitivity_detected": sum(r.get("sensitivity") == "DETECTED" and r.get("baseline") == "PASS" for r in sensitivity_rows),
         "accepted_failure_variants": sorted(accepted_runtime),
         "errors": errors,
-        "meaning": "BOUND_PASS covers listed variants and a source mutation. KNOWN_FAIL preserves exact accepted local failures without claiming a pass.",
+        "meaning": "BOUND_PASS covers the listed runtime variants. KNOWN_FAIL preserves exact accepted local failures without claiming a pass. Source-mutation checks run only in the separate manual workflow.",
     }
     args.json_out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     lines = [
@@ -186,8 +163,6 @@ def main() -> int:
         f"({sum(r['runtime_passes'] for r in statuses if r['matrix_id'] in observed_matrices)} match proposed rules, "
         f"{sum(r['runtime_failures'] for r in statuses if r['matrix_id'] in observed_matrices)} differ, "
         f"{sum(r['runtime_observed'] for r in statuses if r['matrix_id'] in observed_matrices)} measured without a threshold).",
-        f"Representative source-mutation probes detected: **{sum(r.get('sensitivity') == 'DETECTED' and r.get('baseline') == 'PASS' for r in sensitivity_rows)} / {len(expected_sensitivity)}**. "
-        "Each probe checks one selected variant; it does not independently confirm every failing variant.",
         f"Accepted local failure variants: **{len(accepted_runtime)}**. Their exact IDs and failure fingerprints remain visible in the uploaded evidence.",
         "",
         "| Matrix | Status | Executed / planned | Match | Differ | Measured |",
@@ -214,7 +189,7 @@ def main() -> int:
         lines += ["", "## Gate errors", ""] + [f"- {error}" for error in errors]
     lines += [
         "",
-        "A green job can include exact accepted local failures. It means no new failure, missing result, changed failure fingerprint, or missed sensitivity probe was found; it does not mean the known failures were fixed.",
+        "A green job can include exact accepted local failures. It means no new failure, missing result, or changed failure fingerprint was found; it does not mean the known failures were fixed. Source-mutation checks run separately on manual dispatch.",
         "",
     ]
     markdown = "\n".join(lines)

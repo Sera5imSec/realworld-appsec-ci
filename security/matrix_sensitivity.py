@@ -178,9 +178,20 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
-    selected = set(json.loads(args.selection.read_text(encoding="utf-8"))["selected"]) if args.selection else set(PROBES)
-    if args.matrix:
-        selected &= set(args.matrix)
+    bindings = json.loads((ROOT / "security/matrices/bindings.json").read_text(encoding="utf-8"))
+    bound = set(bindings["bound_matrices"])
+    requested = set(args.matrix or bound)
+    unknown = requested - bound
+    if unknown:
+        parser.error(f"unknown matrix ID: {', '.join(sorted(unknown))}")
+    selected = requested
+    if args.selection:
+        selected &= set(json.loads(args.selection.read_text(encoding="utf-8"))["selected"])
+    if not selected:
+        parser.error("no matrix probes selected")
+    missing = selected - set(PROBES)
+    if missing:
+        parser.error(f"missing manual probe: {', '.join(sorted(missing))}")
     results = []
     for matrix_id, (file, function, old, new, variant_id) in PROBES.items():
         if matrix_id not in selected:
@@ -220,6 +231,13 @@ def main() -> int:
         results.append(row)
         print(f"{row['sensitivity']} {matrix_id}: {row.get('detail', '')}")
     args.output.write_text(json.dumps({"results": results}, indent=2) + "\n", encoding="utf-8")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write("## Manual matrix sensitivity\n\n")
+            summary.write("| Matrix | Result | Detail |\n| --- | --- | --- |\n")
+            for row in results:
+                detail = str(row.get("detail", "")).replace("|", "\\|").replace("\n", " ")
+                summary.write(f"| `{row['matrix_id']}` | {row['sensitivity']} | {detail} |\n")
     return 1 if any(r["sensitivity"] != "DETECTED" for r in results) else 0
 
 

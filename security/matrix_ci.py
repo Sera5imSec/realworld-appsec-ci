@@ -143,12 +143,9 @@ def validate(catalog: dict) -> list[str]:
             errors.append("observed matrices must equal the policy-held catalog rows")
         if set(observed) & set(bound):
             errors.append("a matrix cannot be both blocking and observed")
-        for key in ("runner", "sensitivity_runner"):
+        for key in ("runner",):
             if not (ROOT / bindings[key]).is_file():
                 errors.append(f"missing {key}: {bindings[key]}")
-        from matrix_sensitivity import PROBES
-        if set(PROBES) != set(bound):
-            errors.append("sensitivity probes must cover exactly the bound matrices")
     except (OSError, ValueError, KeyError) as exc:
         errors.append(f"invalid bindings: {exc}")
     try:

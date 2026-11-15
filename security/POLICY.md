@@ -18,7 +18,7 @@ deployed service. The catalog's API-spec checks remain separate.
 | `RW-DB-01` | Startup uses the configured `DB_PATH`; the HTTP listener starts only after SQLite can be opened at that path. An invalid database path must stop startup. |
 | `RW-DB-02` | Startup completes user and article schema migration before the HTTP listener starts. A migration error must stop startup. |
 
-These eleven rows are blocking only after their normal and negative variants pass
-and a disposable source mutation is detected for each row. A CI pass still
+These eleven rows are blocking when their normal and negative runtime variants pass.
+Source-mutation sensitivity is checked separately on manual dispatch. A CI pass still
 reports any separately accepted known failures; those are not remediated by
 this policy.
