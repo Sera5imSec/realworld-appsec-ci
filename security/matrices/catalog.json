@@ -192,7 +192,7 @@
         "articles/routers.go",
         "users/middlewares.go"
       ],
-      "obligation": "Каждый зарегистрированный маршрут имеет заявленный режим public, optional или protected; алиасы сохраняют тот же режим. Защищённые маршруты без действительной личности прекращают обработку до записи в БД.",
+      "obligation": "Every registered route has a declared public, optional, or protected access mode; aliases retain the same mode. Protected routes without a valid user identity stop processing before any database write.",
       "variants": [
         {
           "id": "RW-ROUTE-01-R01-P",
@@ -1022,12 +1022,12 @@
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP-статус плюс снимки таблиц users, articles, comments, follows, favorites до/после; перечень маршрутов из реально собранного Gin router.",
-      "sensitivity_plan": "В контролируемой тестовой сборке убрать AuthMiddleware(true) у одного protected маршрута: тот же набор должен увидеть доступ или запись.",
+      "independent_oracle": "HTTP status and before/after snapshots of the users, articles, comments, follows, and favorites tables; route inventory from the built Gin router.",
+      "sensitivity_plan": "In a controlled test build, remove AuthMiddleware(true) from one protected route; the same test set must detect access or a database write.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
-      "note": "/api/ping/ присутствует в коде, но отсутствует в списке основных маршрутов; его public-статус нужно явно сохранить в инвентаре."
+      "note": "/api/ping/ is present in the code but absent from the canonical route list; its public status must be explicitly retained in the inventory."
     },
     {
       "id": "RW-AUTH-01",
@@ -1061,29 +1061,29 @@
         "users/middlewares.go",
         "common/utils.go"
       ],
-      "obligation": "Личность присваивается только токену с ожидаемым HMAC-подписанием и действующим сроком; подмена токена не даёт доступа к protected маршруту.",
+      "obligation": "A user identity is assigned only to a token with the expected HMAC signature and a valid expiration; a modified token cannot access a protected route.",
       "variants": [
         {
           "id": "RW-AUTH-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Войти как Alice, использовать выданный токен в Authorization: Token ...; GET /api/user возвращает Alice.",
+          "scenario_and_expected": "Log in as Alice and use the issued token in Authorization: Token ...; GET /api/user returns Alice.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Изменить один байт подписи токена Alice; GET /api/user должен вернуть 401.",
+          "scenario_and_expected": "Change one byte of Alice's token signature; GET /api/user must return 401.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Отправить просроченный или подписанный другим алгоритмом токен; protected маршрут должен вернуть 401.",
+          "scenario_and_expected": "Send an expired token or one signed with another algorithm; the protected route must return 401.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Статус и identity в JSON; для мутаций дополнительно отсутствие записей в БД.",
-      "sensitivity_plan": "Тестовая мутация, пропускающая jwt.Parse или проверку token.Valid, обязана изменить независимый oracle.",
+      "independent_oracle": "Status and user identity in JSON; for mutations, also verify that no database rows were written.",
+      "sensitivity_plan": "A test mutation that skips jwt.Parse or token.Valid must change the independent oracle result.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1113,33 +1113,33 @@
         "users/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Действительный по подписи токен допускается лишь при корректном положительном числовом id и существующем UserModel; неверные claims и удалённый аккаунт завершаются контролируемым 401, без panic и пустой личности.",
+      "obligation": "A token with a valid signature is accepted only if it contains a valid positive numeric id for an existing UserModel; invalid claims and a deleted account produce a controlled 401 without a panic or empty identity.",
       "variants": [
         {
           "id": "RW-AUTH-02-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Токен Alice содержит её id; GET /api/user возвращает Alice и новый токен того же пользователя.",
+          "scenario_and_expected": "Alice's token contains her id; GET /api/user returns Alice and a new token for the same user.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-02-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Локально подписать токен тем же тестовым ключом, но без id или с id-строкой; ожидать контролируемый отказ, не 500/panic.",
+          "scenario_and_expected": "Locally sign a token with the same test key but no id or a string id; expect a controlled rejection, not a 500 or panic.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-02-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Локально подписать токен с несуществующим id; GET /api/user и POST /api/articles не должны создавать объект от нулевого пользователя.",
+          "scenario_and_expected": "Locally sign a token with a nonexistent id; GET /api/user and POST /api/articles must not create an object owned by a zero-value user.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP-ответ и серверный журнал panic; отдельный запрос к users/articles в тестовой БД.",
-      "sensitivity_plan": "Тестовая мутация, заменяющая проверку найденного пользователя на допуск, должна быть замечена по ответу или записи.",
+      "independent_oracle": "HTTP response and server panic log; independent query of users and articles in the test database.",
+      "sensitivity_plan": "A test mutation that accepts a missing user must be detected in the response or database write.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
-      "note": "Исходник приводит claims[\"id\"] к float64 без проверки типа и не проверяет ошибку db.First; это кандидат для прогона, не заявленная подтверждённая находка."
+      "note": "The source casts claims[\"id\"] to float64 without checking the type and ignores the db.First error; this is a test candidate, not a confirmed finding."
     },
     {
       "id": "RW-AUTH-03",
@@ -1163,29 +1163,29 @@
         "users/middlewares.go",
         "hello.go"
       ],
-      "obligation": "При конфликте Authorization и access_token применяется документированный приоритет заголовка; решение о поддержке токена в URL и его маскировании в логах должно быть явно зафиксировано до CI-gate.",
+      "obligation": "When Authorization conflicts with access_token, the documented header precedence applies; support for URL tokens and their masking in logs must be decided explicitly before the CI gate.",
       "variants": [
         {
           "id": "RW-AUTH-03-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Authorization содержит токен Alice, query access_token содержит токен Bob; текущий контракт выбирает Alice.",
+          "scenario_and_expected": "Authorization contains Alice's token and query access_token contains Bob's token; the current contract selects Alice.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-03-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Только query access_token=токен Bob: зафиксировать фактическую личность и попадание URL в журналы локального сервера.",
+          "scenario_and_expected": "Only query access_token=Bob's token: record the actual identity and whether the URL reaches the local server logs.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-AUTH-03-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Неверный токен в заголовке плюс действительный токен в query: проверить, что query не подменяет приоритет заголовка.",
+          "scenario_and_expected": "An invalid header token plus a valid query token: verify that the query token does not override header precedence.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Identity в GET /api/user и записанный локальный HTTP-журнал с редактированием тестовых токенов в артефакте.",
-      "sensitivity_plan": "Поменять в тестовой копии порядок разбора header/query; oracle личности должен заметить подмену.",
+      "independent_oracle": "Identity from GET /api/user and the recorded local HTTP log, with test tokens redacted in the artifact.",
+      "sensitivity_plan": "Change header/query parsing order in a test copy; the identity oracle must detect the substitution.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -1212,29 +1212,29 @@
         "common/utils.go",
         "users/middlewares.go"
       ],
-      "obligation": "Для production JWT-ключ берётся из управляемой конфигурации, не из исходного кода или значения по умолчанию; смена ключа делает старые тестовые токены недействительными по заданной политике.",
+      "obligation": "In production, the JWT key comes from managed configuration, not source code or a default value; rotating the key invalidates old test tokens under the stated policy.",
       "variants": [
         {
           "id": "RW-CONFIG-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Запустить локальную копию с отдельным случайным тестовым ключом; токен, созданный с ним, принимается.",
+          "scenario_and_expected": "Start a local copy with a separate random test key; a token signed with that key is accepted.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-CONFIG-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Запустить с другим ключом и предъявить токен первого запуска; ожидать 401.",
+          "scenario_and_expected": "Start with a different key and present a token from the first run; expect 401.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-CONFIG-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Проверить, что известная строковая константа из исходника не используется как production fallback.",
+          "scenario_and_expected": "Verify that the known string constant in the source is not used as a production fallback.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Конфигурация запуска и HTTP-проверка токена; статическая проверка отсутствия константы в production path.",
-      "sensitivity_plan": "Вернуть жёстко заданную константу в тестовой сборке: проверка конфигурации или токена обязана провалиться.",
+      "independent_oracle": "Startup configuration and an HTTP token check; static check that the constant is absent from the production path.",
+      "sensitivity_plan": "Restore a hardcoded constant in a test build; the configuration or token check must fail.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -1264,41 +1264,41 @@
         "users/validators.go",
         "users/models.go"
       ],
-      "obligation": "Регистрация принимает валидные username/email/password, сохраняет только проверяемый hash, не создаёт дубль email и не раскрывает пароль или hash в ответе.",
+      "obligation": "Registration accepts valid username, email, and password values, stores only a verifiable hash, does not create a duplicate email, and does not expose the password or hash in the response.",
       "variants": [
         {
           "id": "RW-USER-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Зарегистрировать Alice с уникальным email и паролем из 12 символов; вход с этим паролем успешен, в БД hash не равен исходной строке.",
+          "scenario_and_expected": "Register Alice with a unique email and a 12-character password; login succeeds, and the database hash differs from the original password.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Повторить регистрацию с email Alice и другим username; запись Alice и число пользователей не меняются.",
+          "scenario_and_expected": "Repeat registration with Alice's email and another username; Alice's row and the user count remain unchanged.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Отправить пустой или короткий пароль; ответ 422 и новая запись не появляется.",
+          "scenario_and_expected": "Send an empty or short password; the response is 422 and no new row appears.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-01-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Зарегистрировать Dana с username Alice и новым email; уникальность публичного username должна быть сохранена, профиль Alice не должен стать неоднозначным.",
+          "scenario_and_expected": "Register Dana with Alice's username and a new email; public usernames must remain unique and Alice's profile must not become ambiguous.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-01-N04",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Отправить пароль длиной 100 ASCII-символов, который проходит HTTP-ограничение длины; либо контролируемый отказ без строки пользователя, либо успешное сохранение ненулевого проверяемого hash и последующий login. Пустой hash недопустим.",
+          "scenario_and_expected": "Send a 100-character ASCII password that passes the HTTP length limit; require either a controlled rejection with no user row, or a successful save of a nonempty verifiable hash followed by login. An empty hash is unacceptable.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP JSON и независимый запрос к users: число строк, email, password_hash, bcrypt проверка.",
-      "sensitivity_plan": "Тестовая мутация сохранения пароля без hashing должна быть поймана сравнением БД, даже если HTTP остаётся 201.",
+      "independent_oracle": "HTTP JSON and an independent user-table query: row count, email, password hash, and bcrypt verification.",
+      "sensitivity_plan": "A test mutation that saves a password without hashing must be caught by database comparison even if HTTP still returns 201.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1327,29 +1327,29 @@
         "users/serializers.go",
         "common/utils.go"
       ],
-      "obligation": "Только правильная пара email/password выдаёт токен нужного пользователя; неверный email и неверный пароль не выдают токен и не различаются полезной для перечисления аккаунтов диагностикой.",
+      "obligation": "Only the correct email/password pair yields a token for the right user; wrong email and wrong password yield no token and no diagnostic useful for account enumeration.",
       "variants": [
         {
           "id": "RW-USER-02-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Логин Alice с правильным паролем возвращает 200; GET /api/user с токеном возвращает Alice.",
+          "scenario_and_expected": "Alice logs in with the correct password and receives 200; GET /api/user with the token returns Alice.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-02-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Логин Alice с неверным паролем возвращает 401 без токена.",
+          "scenario_and_expected": "Alice logs in with an incorrect password and receives 401 without a token.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-02-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Логин с несуществующим email возвращает тот же класс отказа без токена.",
+          "scenario_and_expected": "Login with an unknown email returns the same class of rejection without a token.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Статус, наличие поля token, identity при последующем GET /api/user; отсутствие новых записей в БД.",
-      "sensitivity_plan": "Убрать checkPassword в тестовой сборке: отрицательный случай обязан обнаружить выданный токен.",
+      "independent_oracle": "Status, token-field presence, identity on a subsequent GET /api/user, and absence of new database rows.",
+      "sensitivity_plan": "Remove checkPassword in a test build; the negative case must detect an issued token.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1375,29 +1375,29 @@
         "users/serializers.go",
         "users/middlewares.go"
       ],
-      "obligation": "Только владелец токена получает собственные email, username и токен; ответ не содержит hash и полей другого пользователя.",
+      "obligation": "Only the token owner receives their own email, username, and token; the response contains neither a hash nor another user's fields.",
       "variants": [
         {
           "id": "RW-USER-03-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "GET /api/user с токеном Alice возвращает email Alice и ожидаемые публичные поля.",
+          "scenario_and_expected": "GET /api/user with Alice's token returns Alice's email and the expected public fields.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-03-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Токен Bob не должен вернуть email или токен Alice.",
+          "scenario_and_expected": "Bob's token must not return Alice's email or token.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-03-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный GET /api/user должен получить 401 и не раскрыть данные.",
+          "scenario_and_expected": "Anonymous GET /api/user must receive 401 without exposing data.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Сравнение JSON с двумя независимыми строками пользователей в БД; проверка отсутствия PasswordHash.",
-      "sensitivity_plan": "В тестовой сборке подставить UserModel Alice в контекст Bob: сравнение identity должно сработать.",
+      "independent_oracle": "Compare JSON with two independent user rows in the database; check that PasswordHash is absent.",
+      "sensitivity_plan": "Substitute Alice's UserModel into Bob's context in a test build; the identity comparison must detect it.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1425,35 +1425,35 @@
         "users/validators.go",
         "users/models.go"
       ],
-      "obligation": "Редактируются только разрешённые поля текущего пользователя; id, hash, чужая запись и системные поля не берутся из тела запроса; при изменении пароля сохраняется новый hash.",
+      "obligation": "Only allowed fields of the current user may be edited; id, hash, another user's row, and system fields are not taken from the request body; a password change stores a new hash.",
       "variants": [
         {
           "id": "RW-USER-04-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice меняет bio и image; меняется только её строка, Bob остаётся прежним.",
+          "scenario_and_expected": "Alice changes bio and image; only her row changes, while Bob's remains unchanged.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-04-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice отправляет JSON с чужим id, password_hash и email Bob; чужая строка и системные поля не меняются.",
+          "scenario_and_expected": "Alice sends JSON containing another user's id, password_hash, and Bob's email; Bob's row and system fields remain unchanged.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-04-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный PUT /api/user с корректным телом получает 401 без записи.",
+          "scenario_and_expected": "Anonymous PUT /api/user with a valid body receives 401 without a write.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-USER-04-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice меняет пароль; старый пароль больше не проходит login, новый проходит, Bob и его hash не меняются.",
+          "scenario_and_expected": "Alice changes her password; the old password no longer works for login, the new one does, and Bob and his hash remain unchanged.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимый снимок строк Alice/Bob до и после плюс проверка пароля через login.",
-      "sensitivity_plan": "Тестовая мутация, которая применяет поля тела напрямую к UserModel без allowlist, должна изменить снимок и провалить проверку.",
+      "independent_oracle": "Independent before/after snapshots of Alice's and Bob's rows, plus a login check for the new password.",
+      "sensitivity_plan": "A test mutation that applies body fields directly to UserModel without an allowlist must change the snapshot and fail the check.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1479,29 +1479,29 @@
         "users/serializers.go",
         "users/models.go"
       ],
-      "obligation": "Публичный профиль возвращает только username, bio, image, following; following зависит от текущего зрителя, а email, token, hash и внутренний id не раскрываются.",
+      "obligation": "A public profile returns only username, bio, image, and following; following depends on the current viewer, while email, token, hash, and internal id are not exposed.",
       "variants": [
         {
           "id": "RW-PROFILE-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice подписана на Bob: Alice видит following=true в профиле Bob; аноним видит false.",
+          "scenario_and_expected": "Alice follows Bob: Alice sees following=true on Bob's profile, while an anonymous viewer sees false.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-PROFILE-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Bob и аноним не должны получить email, token, password_hash или внутренний id в JSON.",
+          "scenario_and_expected": "Bob and an anonymous viewer must not receive email, token, password_hash, or internal id in JSON.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-PROFILE-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Неизвестный username возвращает 404 без чужого профиля.",
+          "scenario_and_expected": "An unknown username returns 404 without another user's profile.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Парсинг JSON по allowlist полей и независимая таблица follows для Alice/Bob.",
-      "sensitivity_plan": "Тестовая мутация сериализатора, добавляющая Email, обязана быть обнаружена allowlist-проверкой.",
+      "independent_oracle": "Parse JSON against a field allowlist and independently inspect the follows table for Alice and Bob.",
+      "sensitivity_plan": "A test mutation that adds Email to the serializer must be caught by the allowlist check.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1529,35 +1529,35 @@
         "users/routers.go",
         "users/models.go"
       ],
-      "obligation": "Подписка и отписка изменяют только связь текущего пользователя с выбранным профилем; операции не меняют связи Bob и повтор не создаёт дополнительную связь.",
+      "obligation": "Following and unfollowing change only the relationship between the current user and selected profile; they do not alter Bob's other relationships, and repetition does not create an extra relationship.",
       "variants": [
         {
           "id": "RW-FOLLOW-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice подписывается на Bob и отписывается; соответствующая связь появляется и исчезает.",
+          "scenario_and_expected": "Alice follows and then unfollows Bob; the corresponding relationship appears and disappears.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FOLLOW-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice отправляет body с id Charlie или чужим follower; связь Bob->Charlie остаётся неизменной.",
+          "scenario_and_expected": "Alice sends a body containing Charlie's id or another follower; Bob-to-Charlie remains unchanged.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FOLLOW-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Повторный POST от Alice к Bob не создаёт вторую активную связь; анонимный POST/DELETE не меняет таблицу.",
+          "scenario_and_expected": "A repeated POST by Alice to Bob does not create a second active relationship; anonymous POST/DELETE does not change the table.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FOLLOW-01-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice пытается подписаться на несуществующий username; 404 и новая связь не появляется.",
+          "scenario_and_expected": "Alice tries to follow an unknown username; the response is 404 and no new relationship appears.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Строки follow по паре actor-target до/после и поле following в ответах для Alice/Bob.",
-      "sensitivity_plan": "Тестовая мутация, заменяющая actor на указанный в body id, должна изменить независимый снимок связей.",
+      "independent_oracle": "Before/after follow rows for the actor-target pair and the following field in responses for Alice and Bob.",
+      "sensitivity_plan": "A test mutation that replaces the actor with an id from the body must change the independent relationship snapshot.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1585,29 +1585,29 @@
         "articles/validators.go",
         "articles/models.go"
       ],
-      "obligation": "Валидная статья создаётся от текущего пользователя; клиент не может выбрать AuthorID, а невалидный запрос не создаёт статью или связанные записи.",
+      "obligation": "A valid article is created for the current user; the client cannot choose AuthorID, and an invalid request creates neither an article nor related rows.",
       "variants": [
         {
           "id": "RW-ARTICLE-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice создаёт статью с title, description, body; в БД AuthorID соответствует Alice, ответ показывает Alice.",
+          "scenario_and_expected": "Alice creates an article with title, description, and body; AuthorID in the database identifies Alice, and the response shows Alice.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice добавляет в JSON author/author_id Bob; новая статья всё равно принадлежит Alice.",
+          "scenario_and_expected": "Alice adds Bob as author/author_id in JSON; the new article still belongs to Alice.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Не указать body или отправить недопустимый тип; 422 и число статей не меняется.",
+          "scenario_and_expected": "Omit body or send an invalid type; the response is 422 and the article count does not change.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP JSON, строки articles и article_users в тестовой БД до/после.",
-      "sensitivity_plan": "Тестовая мутация, читающая author_id из тела, должна изменить DB-oracle и провалить проверку.",
+      "independent_oracle": "HTTP JSON and before/after article and article_user rows in the test database.",
+      "sensitivity_plan": "A test mutation that reads author_id from the body must change the database oracle and fail the check.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1634,29 +1634,29 @@
         "articles/validators.go",
         "articles/models.go"
       ],
-      "obligation": "Обновить статью может только её автор; отказ чужому пользователю не меняет текст, slug, теги и владельца.",
+      "obligation": "Only an article's author may update it; rejection of another user leaves text, slug, tags, and ownership unchanged.",
       "variants": [
         {
           "id": "RW-ARTICLE-02-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice меняет title собственной статьи; обновлённые поля и slug относятся к той же записи.",
+          "scenario_and_expected": "Alice changes the title of her own article; the updated fields and slug still refer to the same row.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-02-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Bob отправляет PUT к статье Alice с новым title/body/tagList; ожидается 403 и полный снимок статьи и тегов не меняется.",
+          "scenario_and_expected": "Bob sends PUT to Alice's article with a new title/body/tagList; expect 403 and no change in the full article and tag snapshots.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-02-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный PUT к той же статье и алиасу со слешем не достигает обновления.",
+          "scenario_and_expected": "An anonymous PUT to the same article, including the trailing-slash alias, cannot reach the update.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP status и DB-снимок строки статьи плюс join article_tags, сопоставленный с исходным ID.",
-      "sensitivity_plan": "Убрать сравнение AuthorID в тестовой сборке: DB-снимок должен обнаружить изменение от Bob.",
+      "independent_oracle": "HTTP status and a database snapshot of the article row and article_tags join, matched to the original ID.",
+      "sensitivity_plan": "Remove the AuthorID comparison in a test build; the database snapshot must detect Bob's change.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1680,29 +1680,29 @@
         "articles/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Удаление существующей статьи разрешено только её автору; другой пользователь не может удалить или скрыть её.",
+      "obligation": "Only an article's author may delete it; another user cannot delete or hide it.",
       "variants": [
         {
           "id": "RW-ARTICLE-03-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice удаляет собственную статью; обычный GET по slug больше её не возвращает.",
+          "scenario_and_expected": "Alice deletes her own article; a normal GET by slug no longer returns it.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-03-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Bob удаляет статью Alice; 403 и статья остаётся доступной Alice и анонимному GET.",
+          "scenario_and_expected": "Bob tries to delete Alice's article; the response is 403 and the article remains available to Alice and anonymous GET.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-03-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный DELETE не меняет запись; неизвестный slug отдельно фиксируется как текущая idempotent-ветка без вывода о разрешении чужого удаления.",
+          "scenario_and_expected": "Anonymous DELETE does not change the row; an unknown slug is recorded separately as the current idempotent path without implying permission to delete another user's article.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP status, DB row/soft-delete state и повторный GET статьи.",
-      "sensitivity_plan": "Отключить сравнение AuthorID в тестовой копии: чужое удаление должно быть видно по DB и GET.",
+      "independent_oracle": "HTTP status, database row/soft-delete state, and a subsequent article GET.",
+      "sensitivity_plan": "Disable the AuthorID comparison in a test copy; another user's deletion must be visible in the database and GET.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1731,33 +1731,33 @@
         "articles/models.go",
         "articles/routers.go"
       ],
-      "obligation": "Разные статьи, включая статьи с одинаковым title, получают разные slug; изменение title обновляет slug только той же статьи, без перезаписи другого автора.",
+      "obligation": "Different articles, including those with the same title, receive distinct slugs; changing a title updates only that article's slug without overwriting another author's article.",
       "variants": [
         {
           "id": "RW-ARTICLE-04-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice и Bob создают статьи с разными title; каждый slug ведёт к соответствующему ID и автору.",
+          "scenario_and_expected": "Alice and Bob create articles with different titles; each slug resolves to the corresponding ID and author.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-04-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice и Bob независимо создают статьи с одинаковым title; обе должны быть доступны под разными slug согласно текущей спецификации.",
+          "scenario_and_expected": "Alice and Bob independently create articles with the same title; both must be available under distinct slugs under the current specification.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-04-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice переименовывает статью на title существующей статьи Bob; запись Bob и её URL не меняются.",
+          "scenario_and_expected": "Alice renames an article to match the title of Bob's article; Bob's row and URL remain unchanged.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимые ID/slug/author в БД и GET по обоим slug.",
-      "sensitivity_plan": "Тестовая мутация, заменяющая генерацию уникального slug на детерминированный slug.Make без разрешения коллизии, должна нарушить oracle.",
+      "independent_oracle": "Independent IDs, slugs, and authors in the database, plus GET for both slugs.",
+      "sensitivity_plan": "A test mutation that replaces unique-slug generation with deterministic slug.Make without collision handling must break the oracle.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
-      "note": "Текущая спецификация явно требует уникальные slug при одинаковых title; исходник использует slug.Make и uniqueIndex. Результат не утверждаем без прогона."
+      "note": "The current specification explicitly requires unique slugs for equal titles; the source uses slug.Make and uniqueIndex. Do not claim an outcome without running the test."
     },
     {
       "id": "RW-ARTICLE-05",
@@ -1784,29 +1784,29 @@
         "articles/models.go",
         "articles/routers.go"
       ],
-      "obligation": "Статья и её теги изменяются атомарно: если создание или обновление статьи отклонено, не появляются новые теги и связи; допустимые теги принадлежат только завершённым операциям.",
+      "obligation": "An article and its tags change atomically: if article creation or update is rejected, no new tags or links appear; accepted tags belong only to completed operations.",
       "variants": [
         {
           "id": "RW-ARTICLE-05-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice создаёт статью с новым уникальным тегом; статья, тег и связь присутствуют вместе.",
+          "scenario_and_expected": "Alice creates an article with a new unique tag; the article, tag, and link all exist together.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-05-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Создать новую статью с уже занятым slug и новым тегом; при отказе не должно остаться нового тега/связи.",
+          "scenario_and_expected": "Create a new article with an occupied slug and a new tag; a rejection must leave no new tag or link.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-05-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Отправить обновление статьи, которое не проходит проверку/сохранение, с новым tagList; прежние теги остаются прежними.",
+          "scenario_and_expected": "Send an article update that fails validation or saving with a new tagList; the old tags remain unchanged.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "DB-снимки articles, tags и article_tags до/после; GET /api/tags как внешний маршрут.",
-      "sensitivity_plan": "Тестовая мутация, сохраняющая тег перед ошибкой статьи, должна обнаруживаться DB-oracle.",
+      "independent_oracle": "Before/after database snapshots of articles, tags, and article_tags; GET /api/tags as an external route.",
+      "sensitivity_plan": "A test mutation that saves a tag before an article error must be detected by the database oracle.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -1833,29 +1833,29 @@
         "articles/models.go",
         "articles/serializers.go"
       ],
-      "obligation": "Публичный список возвращает только статьи, соответствующие выбранному tag, author или favorited; count и порядок/страницы соответствуют выбранному набору, без смешения с другой фикстурой.",
+      "obligation": "The public list returns only articles matching the selected tag, author, or favorited filter; count, order, and pages match that set without mixing in other fixtures.",
       "variants": [
         {
           "id": "RW-ARTICLE-06-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Создать статьи Alice/Bob с разными тегами и избранным; GET с каждым фильтром возвращает нужные slug, count и страницу.",
+          "scenario_and_expected": "Create Alice and Bob articles with different tags and favorite relationships; GET with each filter returns the expected slugs, count, and page.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-06-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Запросить несуществующий author/tag/favorited; список пуст и не включает статьи других пользователей.",
+          "scenario_and_expected": "Query an unknown author, tag, or favorited value; the list is empty and excludes other users' articles.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-06-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Задать offset за концом набора; ответ пуст, count сохраняет число подходящих статей.",
+          "scenario_and_expected": "Set offset beyond the result set; the response is empty and count still reflects the number of matching articles.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Сравнение множества article ID по независимым DB-запросам с JSON slug/count; проверка порядка по времени.",
-      "sensitivity_plan": "Убрать фильтр author в тестовой сборке: DB-oracle должен выявить чужую статью.",
+      "independent_oracle": "Compare article IDs from independent database queries with JSON slugs and count; verify time ordering.",
+      "sensitivity_plan": "Remove the author filter in a test build; the database oracle must reveal another user's article.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1881,29 +1881,29 @@
         "articles/models.go",
         "users/models.go"
       ],
-      "obligation": "Лента пользователя включает статьи только тех авторов, на которых он подписан, с корректным count и без данных из несвязанных подписок.",
+      "obligation": "A user's feed includes articles only from followed authors, with the correct count and no data from unrelated follows.",
       "variants": [
         {
           "id": "RW-FEED-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice подписана на Bob, но не на Charlie; feed Alice содержит статью Bob и не содержит статью Charlie.",
+          "scenario_and_expected": "Alice follows Bob but not Charlie; Alice's feed includes Bob's article and excludes Charlie's.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FEED-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Feed Charlie без подписок не включает статьи Bob или Alice.",
+          "scenario_and_expected": "Charlie's feed with no follows includes neither Bob's nor Alice's articles.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FEED-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный запрос к /api/articles/feed получает 401; чужой токен не меняет состав feed Alice.",
+          "scenario_and_expected": "Anonymous GET /api/articles/feed receives 401; another user's token does not change Alice's feed contents.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Отдельные DB-запросы по follow edges и author IDs, сопоставление slug и articlesCount в HTTP.",
-      "sensitivity_plan": "Тестовая мутация, убирающая WHERE author_id IN followings, должна добавить статью Charlie и быть замечена.",
+      "independent_oracle": "Independent database queries for follow edges and author IDs, matched against slugs and articlesCount in HTTP.",
+      "sensitivity_plan": "A test mutation that removes WHERE author_id IN followings must add Charlie's article and be detected.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -1933,33 +1933,33 @@
         "articles/serializers.go",
         "users/serializers.go"
       ],
-      "obligation": "Ответы содержат только документированные поля статьи/профиля, без email, hash, token и внутренних ID; favorited/following определяются текущим зрителем. Для текущей версии спецификации списки не включают body.",
+      "obligation": "Responses contain only documented article and profile fields, without email, hash, token, or internal IDs; favorited and following depend on the viewer. Under the current specification, list responses omit body.",
       "variants": [
         {
           "id": "RW-ARTICLE-07-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Аноним, Alice и Bob читают одну статью; общие поля совпадают, viewer-specific поля соответствуют их подпискам/избранному.",
+          "scenario_and_expected": "Anonymous, Alice, and Bob read the same article; common fields match, and viewer-specific fields match their follows and favorites.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-07-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Вложенный author и list response не содержат email/password_hash/token/internal ID.",
+          "scenario_and_expected": "Nested author and list responses contain no email, password_hash, token, or internal ID.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ARTICLE-07-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "GET списка в контракте текущей спецификации не содержит body каждой статьи; расхождение фиксируется отдельно от вопроса приватности.",
+          "scenario_and_expected": "Under the current specification, list GET responses omit each article's body; record this mismatch separately from privacy issues.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Парсинг JSON по allowlist из официального response format и DB-отношения Alice/Bob.",
-      "sensitivity_plan": "Тестовая мутация, добавляющая Email автора в ArticleResponse, обязана быть замечена allowlist-oracle.",
+      "independent_oracle": "Parse JSON against the official response-format allowlist and compare with Alice/Bob database relationships.",
+      "sensitivity_plan": "A test mutation that adds the author's Email to ArticleResponse must be detected by the allowlist oracle.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
-      "note": "Упоминание body в списках относится к текущей версии официального API; до CI-gate нужно согласовать версию контракта с выбранным примером."
+      "note": "The list-body requirement comes from the current official API version; agree on the applicable contract version for this example before making it a CI gate."
     },
     {
       "id": "RW-TAG-01",
@@ -1986,29 +1986,29 @@
         "articles/models.go",
         "articles/serializers.go"
       ],
-      "obligation": "GET /api/tags возвращает только строковые теги, созданные завершёнными операциями; повторное использование тега не создаёт лишних активных записей.",
+      "obligation": "GET /api/tags returns only string tags created by completed operations; reusing a tag does not create extra active rows.",
       "variants": [
         {
           "id": "RW-TAG-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice и Bob создают статьи с общим тегом; GET /api/tags содержит этот тег один раз.",
+          "scenario_and_expected": "Alice and Bob create articles with a shared tag; GET /api/tags contains that tag once.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-TAG-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Ошибка создания статьи с новым тегом не должна оставлять тег видимым в GET /api/tags.",
+          "scenario_and_expected": "A failed article creation with a new tag must not leave that tag visible in GET /api/tags.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-TAG-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Параллельное добавление одного и того же тега не создаёт дубликатов или чужих article_tags связей.",
+          "scenario_and_expected": "Adding the same tag concurrently creates neither duplicates nor unrelated article_tags links.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP tags и DB-таблицы tags/article_tags с подсчётом активных строк.",
-      "sensitivity_plan": "Тестовая мутация, удаляющая уникальность Tag или откат связи, должна быть замечена count и DB-снимком.",
+      "independent_oracle": "HTTP tags and the tags/article_tags database tables with active-row counts.",
+      "sensitivity_plan": "A test mutation that removes Tag uniqueness or link rollback must be detected by the count and database snapshot.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2036,29 +2036,29 @@
         "articles/validators.go",
         "articles/models.go"
       ],
-      "obligation": "Новый комментарий связывается с указанной существующей статьёй и текущим пользователем; чужой author_id из тела не принимается.",
+      "obligation": "A new comment is linked to the specified existing article and current user; an author_id for another user in the body is ignored.",
       "variants": [
         {
           "id": "RW-COMMENT-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice комментирует статью Bob; строка comment указывает на article Bob и автора Alice.",
+          "scenario_and_expected": "Alice comments on Bob's article; the comment row points to Bob's article and Alice as author.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice указывает в JSON author_id Bob; в БД остаётся автор Alice.",
+          "scenario_and_expected": "Alice sets author_id to Bob in JSON; Alice remains the author in the database.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Неверный slug или пустой body не создаёт комментарий.",
+          "scenario_and_expected": "An invalid slug or empty body does not create a comment.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP JSON и независимые CommentModel.ArticleID/AuthorID в БД.",
-      "sensitivity_plan": "Тестовая мутация, использующая author_id из body, должна нарушить DB-oracle.",
+      "independent_oracle": "HTTP JSON and independent CommentModel.ArticleID/AuthorID values in the database.",
+      "sensitivity_plan": "A test mutation that uses author_id from the body must break the database oracle.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -2083,35 +2083,35 @@
         "articles/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Удалить существующий комментарий может только его автор; отказ Bob не меняет комментарий Alice.",
+      "obligation": "Only a comment's author may delete it; Bob's rejected request leaves Alice's comment unchanged.",
       "variants": [
         {
           "id": "RW-COMMENT-02-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice удаляет собственный комментарий на статье Bob; он исчезает из списка комментариев.",
+          "scenario_and_expected": "Alice deletes her own comment on Bob's article; it disappears from the comment list.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-02-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Bob отправляет DELETE к id комментария Alice; 403, комментарий остаётся.",
+          "scenario_and_expected": "Bob sends DELETE for Alice's comment id; the response is 403 and the comment remains.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-02-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Анонимный DELETE к тому же id не меняет строку.",
+          "scenario_and_expected": "Anonymous DELETE for the same id does not change the row.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-02-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice передаёт нечисловой :id через существующий slug; 404, ни один комментарий не изменён.",
+          "scenario_and_expected": "Alice sends a nonnumeric :id under an existing slug; the response is 404 and no comment changes.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP status, DB row/soft-delete state и повторный GET comments.",
-      "sensitivity_plan": "Отключить проверку AuthorID в тестовой сборке: чужое удаление должно быть видно по DB и GET.",
+      "independent_oracle": "HTTP status, database row/soft-delete state, and a subsequent comments GET.",
+      "sensitivity_plan": "Disable the AuthorID check in a test build; another user's deletion must be visible in the database and GET.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -2137,29 +2137,29 @@
         "articles/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Вложенный маршрут удаляет комментарий лишь если comment.ArticleID соответствует статье из :slug; валидный id из другой статьи не выбирает чужой вложенный ресурс.",
+      "obligation": "The nested route deletes a comment only if comment.ArticleID matches the article selected by :slug; a valid id from another article cannot select an unrelated nested resource.",
       "variants": [
         {
           "id": "RW-COMMENT-03-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice удаляет свой comment A через slug статьи A; удаляется ровно comment A.",
+          "scenario_and_expected": "Alice deletes her comment A through article A's slug; only comment A is removed.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-03-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice подставляет slug статьи B к id своего comment A; запрос должен быть отклонён, comment A сохранён.",
+          "scenario_and_expected": "Alice uses article B's slug with the id of her comment A; the request must be rejected and comment A preserved.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-03-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Использовать несуществующий slug с существующим id; существующий комментарий остаётся.",
+          "scenario_and_expected": "Use a nonexistent slug with an existing id; the existing comment remains.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимая связь CommentModel.ArticleID -> ArticleModel.Slug в БД и состояние комментария после HTTP.",
-      "sensitivity_plan": "В тестовой сборке убрать сравнение slug и ArticleID: отрицательный сценарий обязан удалить comment A и быть замечен.",
+      "independent_oracle": "Independently compare CommentModel.ArticleID with ArticleModel.Slug in the database and inspect comment state after HTTP.",
+      "sensitivity_plan": "Remove the slug-to-ArticleID comparison in a test build; the negative case must delete comment A and detect the change.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2187,29 +2187,29 @@
         "articles/models.go",
         "articles/serializers.go"
       ],
-      "obligation": "Публичный список содержит комментарии только указанной статьи и лишь документированные поля комментария и автора.",
+      "obligation": "The public list contains comments only for the selected article and only documented comment and author fields.",
       "variants": [
         {
           "id": "RW-COMMENT-04-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Статьи A/B имеют разные комментарии; анонимный GET статьи A возвращает только комментарии A.",
+          "scenario_and_expected": "Articles A and B have different comments; anonymous GET for article A returns only A's comments.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-04-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "GET несуществующего slug не возвращает комментарии другой статьи.",
+          "scenario_and_expected": "GET for a nonexistent slug does not return another article's comments.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-COMMENT-04-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "В JSON нет email, password_hash, token или внутренних ID автора.",
+          "scenario_and_expected": "JSON contains no author email, password_hash, token, or internal ID.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимый DB-запрос comments WHERE article_id=A и проверка JSON allowlist.",
-      "sensitivity_plan": "Тестовая мутация, убирающая фильтр ArticleID, должна добавить комментарий B и быть замечена.",
+      "independent_oracle": "Independent database query for comments WHERE article_id=A and a JSON allowlist check.",
+      "sensitivity_plan": "A test mutation that removes the ArticleID filter must add comment B and be detected.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -2243,35 +2243,35 @@
         "articles/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Избранное относится только к текущему пользователю и статье; повторные и параллельные операции не создают дубликаты, а favorited и favoritesCount соответствуют активным связям.",
+      "obligation": "Favorites belong only to the current user and article; repeated and concurrent operations create no duplicates, while favorited and favoritesCount match active relationships.",
       "variants": [
         {
           "id": "RW-FAVORITE-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Alice добавляет статью Bob в избранное; для Alice favorited=true, для Bob=false, count=1; после DELETE count=0.",
+          "scenario_and_expected": "Alice favorites Bob's article; favorited is true for Alice and false for Bob, count is 1; after DELETE, count is 0.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FAVORITE-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice и Bob добавляют одну статью, затем Alice удаляет избранное; связь Bob остаётся и count=1.",
+          "scenario_and_expected": "Alice and Bob favorite the same article, then Alice removes her favorite; Bob's relationship remains and count is 1.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FAVORITE-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Повторить POST Alice дважды и параллельно; одна активная связь Alice-article и корректный count.",
+          "scenario_and_expected": "Repeat Alice's POST twice and concurrently; there is one active Alice-article relationship and the count is correct.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-FAVORITE-01-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Alice отправляет favorite для несуществующего slug; 404, новые FavoriteModel не появляются.",
+          "scenario_and_expected": "Alice favorites an unknown slug; the response is 404 and no new FavoriteModel rows appear.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимый count и набор FavoriteModel по articleID/userID в БД плюс JSON для Alice/Bob.",
-      "sensitivity_plan": "В тестовой сборке убрать ограничение favorite_by_id при DELETE или подсчёте: DB-oracle обнаружит чужое удаление или неверный count.",
+      "independent_oracle": "Independent count and set of FavoriteModel rows by articleID/userID in the database, plus JSON for Alice and Bob.",
+      "sensitivity_plan": "Remove the favorite_by_id constraint on DELETE or counting in a test build; the database oracle detects another user's deletion or an incorrect count.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null
@@ -2306,7 +2306,7 @@
         "common/utils.go",
         "users/validators.go"
       ],
-      "obligation": "Отсутствующие, неверно типизированные и синтаксически неверные поля дают контролируемый 4xx по контракту и не меняют БД; обработчик ошибок не должен panic на ошибке биндинга.",
+      "obligation": "Missing, mistyped, and syntactically invalid fields produce a controlled contractual 4xx without changing the database; the error handler must not panic on a binding error.",
       "variants": [
         {
           "id": "RW-INPUT-01-R01-P",
@@ -2654,12 +2654,12 @@
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP status/body, журнал panic и снимки затронутых таблиц до/после.",
-      "sensitivity_plan": "Заменить обработку binding error на продолжение обработки в тестовой сборке: DB или HTTP-oracle должен заметить изменение.",
+      "independent_oracle": "HTTP status and body, panic log, and before/after snapshots of affected tables.",
+      "sensitivity_plan": "Make binding-error handling continue processing in a test build; the database or HTTP oracle must detect the change.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
-      "note": "NewValidatorError приводит err к validator.ValidationErrors; поведение при JSON syntax error требует отдельной проверки."
+      "note": "NewValidatorError casts err to validator.ValidationErrors; behavior on a JSON syntax error needs a separate check."
     },
     {
       "id": "RW-QUERY-01",
@@ -2688,29 +2688,29 @@
         "articles/routers.go",
         "articles/models.go"
       ],
-      "obligation": "Строки клиента используются как значения запроса, не как SQL-структура; специальные символы не расширяют выборку и не возвращают чужую запись.",
+      "obligation": "Client strings are used as query values, not SQL structure; special characters neither broaden results nor return another user's row.",
       "variants": [
         {
           "id": "RW-QUERY-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Точный username/slug/tag возвращает только соответствующий объект.",
+          "scenario_and_expected": "An exact username, slug, or tag returns only the matching object.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-QUERY-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Передать кавычки и SQL-метасимволы в username, slug и tag; результат пуст или корректный 4xx, без расширенной выборки.",
+          "scenario_and_expected": "Send quotes and SQL metacharacters in username, slug, and tag; the result is empty or a controlled 4xx, without a broader selection.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-QUERY-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Запрос с необычным Unicode и процентным кодированием не меняет интерпретацию других параметров.",
+          "scenario_and_expected": "A query with unusual Unicode and percent encoding does not change interpretation of other parameters.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Сравнение возвращённых ID с независимым параметризованным DB-запросом и снимком БД.",
-      "sensitivity_plan": "Тестовая мутация на сырую SQL-конкатенацию должна расширить выборку и быть замечена по ID.",
+      "independent_oracle": "Compare returned IDs with an independent parameterized database query and database snapshot.",
+      "sensitivity_plan": "A test mutation using raw SQL concatenation must broaden results and be detected by ID.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2743,35 +2743,35 @@
         "articles/validators.go",
         "common/utils.go"
       ],
-      "obligation": "Запросы ограничены: limit не более 100, отрицательные limit/offset нормализуются, tagList не длиннее 32 элементов, JSON не более 64 KiB; превышение размеров не меняет БД.",
+      "obligation": "Requests are bounded: limit is at most 100, negative limit/offset values are normalized, tagList has at most 32 elements, and JSON is at most 64 KiB; oversized requests do not change the database.",
       "variants": [
         {
           "id": "RW-RESOURCE-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Запрос с limit=20 и небольшим tagList обрабатывается в заданном бюджете.",
+          "scenario_and_expected": "A request with limit=20 and a short tagList is handled within the defined bounds.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-RESOURCE-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Передать очень большой или отрицательный limit/offset; приложение нормализует/отклоняет их и не возвращает неограниченный набор.",
+          "scenario_and_expected": "Send a very large or negative limit/offset; the application normalizes or rejects them and does not return an unbounded result set.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-RESOURCE-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Передать 64 тега; запрос получает 422 без новых записей.",
+          "scenario_and_expected": "Send 64 tags; the request receives 422 without new rows.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-RESOURCE-01-N03",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Передать JSON более 64 KiB; запрос получает 4xx без новых записей.",
+          "scenario_and_expected": "Send JSON larger than 64 KiB; the request receives 4xx without new rows.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP-код, число статей в ответе и независимые снимки БД до/после запросов с 64 тегами и JSON более 64 KiB.",
-      "sensitivity_plan": "Отключить лимит выборки в тестовой сборке: контроль числа строк обязан заметить превышение.",
+      "independent_oracle": "HTTP status, response article count, and independent before/after database snapshots for requests with 64 tags and JSON larger than 64 KiB.",
+      "sensitivity_plan": "Disable the result limit in a test build; the row-count check must detect the excess.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2804,29 +2804,29 @@
         "users/routers.go",
         "articles/routers.go"
       ],
-      "obligation": "Публичный отказ сохраняет правильный класс статуса и структурированный JSON, не раскрывая SQL, локальные пути, ключи, stack trace или внутренние имена таблиц.",
+      "obligation": "A public error retains the correct status class and structured JSON without exposing SQL, local paths, keys, stack traces, or internal table names.",
       "variants": [
         {
           "id": "RW-ERROR-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Неверный обязательный пользовательский ввод получает ожидаемый 422 с понятным полем ошибки.",
+          "scenario_and_expected": "Invalid required user input receives the expected 422 with a clear error field.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ERROR-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Вызвать уникальный конфликт или контролируемую ошибку локальной БД; ответ не содержит SQL/путь к DB и stack trace.",
+          "scenario_and_expected": "Trigger a uniqueness conflict or a controlled local database error; the response contains no SQL, database path, or stack trace.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-ERROR-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Синтаксически неверный JSON возвращает контролируемый ответ, не сырую panic-страницу.",
+          "scenario_and_expected": "Syntactically invalid JSON returns a controlled response, not a raw panic page.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "HTTP body/status allowlist и отдельный локальный серверный журнал, который может хранить детали только вне ответа.",
-      "sensitivity_plan": "Тестовая мутация, вставляющая текст DB error в HTTP body, должна сработать на запрещённый маркер.",
+      "independent_oracle": "HTTP body/status allowlist and a separate local server log that may hold details only outside the response.",
+      "sensitivity_plan": "A test mutation that inserts database error text into the HTTP body must trigger a forbidden marker.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2858,29 +2858,29 @@
         "articles/serializers.go",
         "articles/routers.go"
       ],
-      "obligation": "Чтение публичных объектов не создаёт и не меняет доменные строки users, article_users, follows, favorites, tags или articles; viewer-specific вычисления остаются read-only.",
+      "obligation": "Reading public objects does not create or change domain rows in users, article_users, follows, favorites, tags, or articles; viewer-specific calculations remain read-only.",
       "variants": [
         {
           "id": "RW-READ-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "Создать Alice без ArticleUserModel и затем GET публичной статьи как Alice; доменные таблицы до/после совпадают.",
+          "scenario_and_expected": "Create Alice without an ArticleUserModel, then GET a public article as Alice; domain tables match before and after.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-READ-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "GET /api/articles?author=Alice и GET статьи с токеном Alice не должны создавать ArticleUserModel только из-за сериализации/фильтра.",
+          "scenario_and_expected": "GET /api/articles?author=Alice and GET an article with Alice's token must not create an ArticleUserModel solely through serialization or filtering.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-READ-01-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "Многократный GET не меняет счётчики или связи.",
+          "scenario_and_expected": "Repeated GET requests do not change counts or relationships.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Независимые DB-снимки всех доменных таблиц до/после GET, исключая технические журналы.",
-      "sensitivity_plan": "В тестовой сборке явно добавить FirstOrCreate при GET: DB-снимок обязан обнаружить новую строку.",
+      "independent_oracle": "Independent before/after database snapshots of all domain tables for GET requests, excluding technical logs.",
+      "sensitivity_plan": "Explicitly add FirstOrCreate during GET in a test build; the database snapshot must detect a new row.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2895,23 +2895,23 @@
       "reach": ["GET /api/ping/"],
       "source_refs": ["common/database.go:21", "common/database.go:49", "hello.go:29"],
       "ci_watch_seed": ["common/database.go", "hello.go"],
-      "obligation": "Сервер использует настроенный DB_PATH и начинает принимать HTTP-запросы только после успешного открытия локальной SQLite БД; недопустимый путь БД не ведёт к запуску сервера.",
+      "obligation": "The server uses the configured DB_PATH and begins accepting HTTP requests only after the local SQLite database opens successfully; an invalid database path must prevent startup.",
       "variants": [
         {
           "id": "RW-DB-01-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "На отдельном временном DB_PATH сервер отвечает на ping, а файл SQLite и таблица пользователей существуют именно по этому пути.",
+          "scenario_and_expected": "With a separate temporary DB_PATH, the server responds to ping, and the SQLite file and user tables exist at that path.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-DB-01-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "DB_PATH указывает на уже существующую директорию: сервер завершается с ошибкой открытия БД и не переходит в режим обслуживания HTTP.",
+          "scenario_and_expected": "DB_PATH points to an existing directory: the server exits with a database-open error and never begins serving HTTP.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Ответ ping плюс прямое чтение sqlite_master по указанному DB_PATH; для неверного пути — код завершения процесса и запись ошибки открытия БД в локальном журнале.",
-      "sensitivity_plan": "В одноразовой копии заменить SQLite-путь на :memory:: проверка неверного DB_PATH должна заметить, что сервер продолжил запуск.",
+      "independent_oracle": "Ping response plus a direct sqlite_master query at the configured DB_PATH; for an invalid path, process exit code and database-open error in the local log.",
+      "sensitivity_plan": "Replace the SQLite path with :memory: in a disposable copy; the invalid DB_PATH check must notice that the server continues running.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
@@ -2926,29 +2926,29 @@
       "reach": ["GET /api/ping/"],
       "source_refs": ["users/models.go:45", "hello.go:16", "hello.go:33"],
       "ci_watch_seed": ["users/models.go", "hello.go"],
-      "obligation": "Сервер начинает принимать HTTP-запросы только после успешной миграции схем пользователей и статей. Ошибка миграции прерывает запуск.",
+      "obligation": "The server accepts HTTP requests only after user and article schema migrations succeed. A migration error stops startup.",
       "variants": [
         {
           "id": "RW-DB-02-P01",
           "kind": "CONTROL",
-          "scenario_and_expected": "На новой временной SQLite базе сервер отвечает на ping, а пользовательские и статейные таблицы присутствуют в sqlite_master.",
+          "scenario_and_expected": "On a new temporary SQLite database, the server responds to ping, and user and article tables are present in sqlite_master.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-DB-02-N01",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "В заранее созданной SQLite базе конфликтующий VIEW user_models блокирует миграцию: процесс завершается с ошибкой до запуска HTTP listener.",
+          "scenario_and_expected": "In a preexisting SQLite database, a conflicting user_models view prevents migration; the process exits with an error before the HTTP listener starts.",
           "execution": "NOT_RUN"
         },
         {
           "id": "RW-DB-02-N02",
           "kind": "NEGATIVE",
-          "scenario_and_expected": "В заранее созданной SQLite базе конфликтующий VIEW article_models блокирует миграцию статей после успешной миграции пользователей: процесс завершается до запуска HTTP listener.",
+          "scenario_and_expected": "In a preexisting SQLite database, a conflicting article_models view prevents article migration after successful user migration; the process exits before the HTTP listener starts.",
           "execution": "NOT_RUN"
         }
       ],
-      "independent_oracle": "Для контроля — ping и прямой запрос к sqlite_master; при конфликте схемы — код завершения, журнал ошибки миграции и независимая проверка сохранности VIEW.",
-      "sensitivity_plan": "В одноразовой копии отключить остановку main при ошибке Migrate: отрицательный сценарий должен заметить, что сервер продолжил работу.",
+      "independent_oracle": "For the control, ping and a direct sqlite_master query; for schema conflicts, process exit code, migration-error log, and an independent check that the view remains.",
+      "sensitivity_plan": "Suppress the stop in main after a Migrate error in a disposable copy; the negative case must detect that the server keeps running.",
       "readiness": "DESCRIBED",
       "gate_status": "NOT_READY",
       "runtime_evidence": null,
