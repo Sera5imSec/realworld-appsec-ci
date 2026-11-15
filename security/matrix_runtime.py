@@ -366,8 +366,7 @@ def main() -> int:
             except Exception as exc:
                 result, detail = "ERROR", f"{type(exc).__name__}: {exc}"
             results.append({"matrix_id": mid, "variant_id": vid,
-                            "result": result, "detail": detail,
-                            "sensitivity": "NOT_RUN"})
+                            "result": result, "detail": detail})
             print(f"{result} {vid}: {detail}")
     args.output.write_text(json.dumps({"results": results}, indent=2) + "\n", encoding="utf-8")
     return 1 if any(r["result"] == "ERROR" or

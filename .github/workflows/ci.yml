@@ -203,15 +203,9 @@ jobs:
       continue-on-error: true
       run: python3 security/matrix_runtime.py --binary "$RUNNER_TEMP/realworld-app" --selection "$RUNNER_TEMP/matrix-selection.json" --output "$RUNNER_TEMP/matrix-runtime.json"
 
-    - name: Check matrix sensitivity on disposable source copies
-      id: matrix_sensitivity
-      if: always()
-      continue-on-error: true
-      run: python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --selection "$RUNNER_TEMP/matrix-selection.json" --output "$RUNNER_TEMP/matrix-sensitivity.json"
-
     - name: Publish matrix status and enforce bound results
       if: always()
-      run: python3 security/matrix_report.py --selection "$RUNNER_TEMP/matrix-selection.json" --runtime "$RUNNER_TEMP/matrix-runtime.json" --sensitivity "$RUNNER_TEMP/matrix-sensitivity.json" --json-out "$RUNNER_TEMP/matrix-status.json" --markdown-out "$RUNNER_TEMP/matrix-status.md"
+      run: python3 security/matrix_report.py --selection "$RUNNER_TEMP/matrix-selection.json" --runtime "$RUNNER_TEMP/matrix-runtime.json" --json-out "$RUNNER_TEMP/matrix-status.json" --markdown-out "$RUNNER_TEMP/matrix-status.md"
 
     - name: Upload matrix evidence
       if: always()

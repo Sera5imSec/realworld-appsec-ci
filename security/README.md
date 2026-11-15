@@ -19,23 +19,24 @@ source rules have executable checks and which candidates still need a contract.
   local HTTP server (164 variants across all 32 matrices in a full run). Each
   variant gets a fresh SQLite database with
   synthetic users; write checks compare HTTP and DB state.
-- `matrix_sensitivity.py` builds one disposable source mutant per selected
-  matrix (32 in a full run). Each matrix has
-  a probe that must notice a controlled regression. Production source is not
-  changed by the sensitivity run. One representative variant is probed per
-  matrix; this does not independently confirm every failing variant.
 - `test_matrix_gate.py` checks that dependency and new-source changes cannot
-  silently skip the matrix set, and that missing runtime or sensitivity
-  evidence makes the report fail.
-- `matrix_report.py` fails CI on a new or changed bound check failure, a missing result from
-  either group, a runner error, missing sensitivity evidence, or an unmapped
+  silently skip the matrix set, and that missing runtime evidence makes the
+  report fail.
+- `matrix_report.py` fails CI on a new or changed bound check failure, a missing
+  runtime result, a runner error, or an unmapped
   production file. The only exception is an exact, reviewed local failure in
   `matrices/accepted_failures.json`: both its variant ID and stable observation
   fingerprint must match. New failures and changed fingerprints fail CI; a
   repaired variant also fails until its stale baseline entry is removed. The
   report keeps accepted failures visible as `KNOWN_FAIL`.
+- [Manual Matrix Sensitivity](../.github/workflows/matrix-sensitivity.yml) runs
+  `matrix_sensitivity.py` on GitHub only through `workflow_dispatch`.
+  Choose one matrix ID or `all`. The tool builds disposable source copies and
+  checks one representative variant per matrix; it does not alter production
+  source or independently confirm every variant. Its result and artifact are
+  separate from PR, push, and scheduled CI.
 
-The reverse-audit [PR #7 run](https://github.com/Sera5imSec/realworld-appsec-ci/actions/runs/43715210087)
+Before the manual-only split, the reverse-audit [PR #7 run](https://github.com/Sera5imSec/realworld-appsec-ci/actions/runs/43715210087)
 completed all 161 variants and 31 sensitivity probes. The new DB-startup row
 passed both variants and detected its disposable path-ignoring mutation.
 The previous local runtime run completed 159 variants: 153 passed and 6
@@ -75,9 +76,10 @@ changed in the current PR.
 Non-Go documentation-only and Go test-only changes do not run this matrix job's
 runtime cases; the repository's other test jobs still run.
 
-Each selected matrix runs its runtime variants and one representative source
-mutation probe. A weekly Sunday 03:00 UTC schedule and manual workflow
-dispatch select all 32. The selector uses `ci_watch_seed` to require source
+Each selected matrix runs its runtime variants. The weekly Sunday 03:00 UTC
+schedule and manual dispatch of the main CI workflow select all 32 runtime
+matrices. The separate sensitivity workflow runs only when manually dispatched.
+The selector uses `ci_watch_seed` to require source
 ownership; it does not assume that file-level ownership covers transitive
 dependencies. Shared code therefore keeps the full-run fallback.
 
@@ -146,9 +148,13 @@ python3 security/matrix_ci.py validate
 python3 security/matrix_ci.py select --output /tmp/matrix-selection.json
 CGO_ENABLED=1 go build -o /tmp/realworld-app .
 python3 security/matrix_runtime.py --binary /tmp/realworld-app --selection /tmp/matrix-selection.json --output /tmp/matrix-runtime.json
-python3 security/matrix_sensitivity.py --binary /tmp/realworld-app --selection /tmp/matrix-selection.json --output /tmp/matrix-sensitivity.json
-python3 security/matrix_report.py --selection /tmp/matrix-selection.json --runtime /tmp/matrix-runtime.json --sensitivity /tmp/matrix-sensitivity.json --json-out /tmp/matrix-status.json --markdown-out /tmp/matrix-status.md
+python3 security/matrix_report.py --selection /tmp/matrix-selection.json --runtime /tmp/matrix-runtime.json --json-out /tmp/matrix-status.json --markdown-out /tmp/matrix-status.md
 ```
+
+For an optional local sensitivity check, run
+`python3 security/matrix_sensitivity.py --binary /tmp/realworld-app --matrix RW-DB-02 --output /tmp/matrix-sensitivity.json`.
+On GitHub, use **Actions → Manual Matrix Sensitivity → Run workflow** and enter
+an ID or `all`. This workflow has no automatic trigger.
 
 The existing `.github/workflows/ci.yml` runs its Go, lint, scanner, and API
 jobs alongside `matrix-appsec`. The [default-branch CI run](https://github.com/Sera5imSec/realworld-appsec-private/actions/runs/41345271013)

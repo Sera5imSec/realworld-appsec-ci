@@ -1,0 +1,57 @@
+name: Manual Matrix Sensitivity
+
+on:
+  workflow_dispatch:
+    inputs:
+      matrix_id:
+        description: 'Matrix ID to probe, or all for every matrix'
+        required: true
+        default: all
+        type: string
+
+jobs:
+  sensitivity:
+    name: Manual Matrix Sensitivity
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Validate matrix catalog and bindings
+      run: python3 security/matrix_ci.py validate
+
+    - name: Build local test server
+      env:
+        CGO_ENABLED: '1'
+      run: go build -o "$RUNNER_TEMP/realworld-app" .
+
+    - name: Run requested source-mutation probes
+      env:
+        MATRIX_ID: ${{ inputs.matrix_id }}
+      run: |
+        if [ "$MATRIX_ID" = "all" ]; then
+          python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --output "$RUNNER_TEMP/matrix-sensitivity.json"
+        else
+          python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --matrix "$MATRIX_ID" --output "$RUNNER_TEMP/matrix-sensitivity.json"
+        fi
+
+    - name: Upload manual sensitivity evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: manual-matrix-sensitivity
+        path: ${{ runner.temp }}/matrix-sensitivity.json
+        if-no-files-found: warn
