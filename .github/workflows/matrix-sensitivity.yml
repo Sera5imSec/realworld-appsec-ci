@@ -8,6 +8,9 @@ on:
         required: true
         default: all
         type: string
+  push:
+    branches:
+      - test/sensitivity-input-20261116
 
 jobs:
   sensitivity:
@@ -40,13 +43,17 @@ jobs:
 
     - name: Run requested source-mutation probes
       env:
-        MATRIX_ID: ${{ inputs.matrix_id }}
+        MATRIX_ID: ${{ inputs.matrix_id || 'all' }}
       run: |
         if [ "$MATRIX_ID" = "all" ]; then
           python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --output "$RUNNER_TEMP/matrix-sensitivity.json"
         else
           python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --matrix "$MATRIX_ID" --output "$RUNNER_TEMP/matrix-sensitivity.json"
         fi
+
+    - name: Verify padded single-matrix input on test branch
+      if: github.event_name == 'push'
+      run: python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --matrix ' RW-DB-01 ' --output "$RUNNER_TEMP/matrix-sensitivity-single.json"
 
     - name: Upload manual sensitivity evidence
       if: always()

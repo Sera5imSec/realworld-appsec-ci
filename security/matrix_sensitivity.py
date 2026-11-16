@@ -169,6 +169,23 @@ def run_probe(binary: Path, matrix_id: str, variant_id: str, catalog: dict) -> s
     return run_bound_variant(binary, matrix_id, variant)
 
 
+def write_report(output: Path, results: list[dict], error: str | None = None) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    report = {"results": results}
+    if error:
+        report["error"] = error
+    output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write("## Manual matrix sensitivity\n\n")
+            if error:
+                summary.write(f"**Input error:** {error}\n\n")
+            summary.write("| Matrix | Result | Detail |\n| --- | --- | --- |\n")
+            for row in results:
+                detail = str(row.get("detail", "")).replace("|", "\\|").replace("\n", " ")
+                summary.write(f"| `{row['matrix_id']}` | {row['sensitivity']} | {detail} |\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", required=True, type=Path)
@@ -180,18 +197,43 @@ def main() -> int:
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     bindings = json.loads((ROOT / "security/matrices/bindings.json").read_text(encoding="utf-8"))
     bound = set(bindings["bound_matrices"])
-    requested = set(args.matrix or bound)
+    raw_ids = [value.strip().upper() for value in (args.matrix or [])]
+    if "ALL" in raw_ids:
+        if len(raw_ids) != 1:
+            error = "'all' must be used by itself"
+            write_report(args.output, [], error)
+            print(error)
+            return 2
+        requested = bound
+    else:
+        requested = set(raw_ids) if raw_ids else bound
     unknown = requested - bound
     if unknown:
-        parser.error(f"unknown matrix ID: {', '.join(sorted(unknown))}")
+        variant_owners = {probe[4]: matrix_id for matrix_id, probe in PROBES.items()}
+        hints = []
+        for value in sorted(unknown):
+            if value in variant_owners:
+                hints.append(f"{value} is a variant; use {variant_owners[value]}")
+        error = f"unknown matrix ID: {', '.join(sorted(unknown))}"
+        if hints:
+            error += "; " + "; ".join(hints)
+        write_report(args.output, [], error)
+        print(error)
+        return 2
     selected = requested
     if args.selection:
         selected &= set(json.loads(args.selection.read_text(encoding="utf-8"))["selected"])
     if not selected:
-        parser.error("no matrix probes selected")
+        error = "no matrix probes selected"
+        write_report(args.output, [], error)
+        print(error)
+        return 2
     missing = selected - set(PROBES)
     if missing:
-        parser.error(f"missing manual probe: {', '.join(sorted(missing))}")
+        error = f"missing manual probe: {', '.join(sorted(missing))}"
+        write_report(args.output, [], error)
+        print(error)
+        return 2
     results = []
     for matrix_id, (file, function, old, new, variant_id) in PROBES.items():
         if matrix_id not in selected:
@@ -230,14 +272,7 @@ def main() -> int:
             row["detail"] = str(exc)
         results.append(row)
         print(f"{row['sensitivity']} {matrix_id}: {row.get('detail', '')}")
-    args.output.write_text(json.dumps({"results": results}, indent=2) + "\n", encoding="utf-8")
-    if os.environ.get("GITHUB_STEP_SUMMARY"):
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-            summary.write("## Manual matrix sensitivity\n\n")
-            summary.write("| Matrix | Result | Detail |\n| --- | --- | --- |\n")
-            for row in results:
-                detail = str(row.get("detail", "")).replace("|", "\\|").replace("\n", " ")
-                summary.write(f"| `{row['matrix_id']}` | {row['sensitivity']} | {detail} |\n")
+    write_report(args.output, results)
     return 1 if any(r["sensitivity"] != "DETECTED" for r in results) else 0
 
 
