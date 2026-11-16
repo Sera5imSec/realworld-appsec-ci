@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -216,7 +217,7 @@ def main() -> int:
         if len(raw_ids) != 1:
             error = "'all' must be used by itself"
             write_report(args.output, [], error)
-            print(error)
+            print(error, file=sys.stderr)
             return 2
         requested = bound | set(VARIANT_PROBES)
     else:
@@ -239,7 +240,7 @@ def main() -> int:
         if hints:
             error += "; " + "; ".join(hints)
         write_report(args.output, [], error)
-        print(error)
+        print(error, file=sys.stderr)
         return 2
     selected = requested
     if args.selection:
@@ -252,13 +253,13 @@ def main() -> int:
     if not selected:
         error = "no matrix probes selected"
         write_report(args.output, [], error)
-        print(error)
+        print(error, file=sys.stderr)
         return 2
     missing = selected - set(PROBES) - set(VARIANT_PROBES)
     if missing:
         error = f"missing manual probe: {', '.join(sorted(missing))}"
         write_report(args.output, [], error)
-        print(error)
+        print(error, file=sys.stderr)
         return 2
     results = []
     for probe_id in (*PROBES, *VARIANT_PROBES):
