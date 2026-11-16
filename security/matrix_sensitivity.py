@@ -191,10 +191,13 @@ def write_report(output: Path, results: list[dict], error: str | None = None) ->
             summary.write("## Manual matrix sensitivity\n\n")
             if error:
                 summary.write(f"**Input error:** {error}\n\n")
-            summary.write("| Matrix | Result | Detail |\n| --- | --- | --- |\n")
+            summary.write("| Matrix | Variant | Result | Detail |\n| --- | --- | --- | --- |\n")
             for row in results:
                 detail = str(row.get("detail", "")).replace("|", "\\|").replace("\n", " ")
-                summary.write(f"| `{row['matrix_id']}` | {row['sensitivity']} | {detail} |\n")
+                summary.write(
+                    f"| `{row['matrix_id']}` | `{row['variant_id']}` | "
+                    f"{row['sensitivity']} | {detail} |\n"
+                )
 
 
 def main() -> int:
@@ -215,9 +218,9 @@ def main() -> int:
             write_report(args.output, [], error)
             print(error)
             return 2
-        requested = bound
+        requested = bound | set(VARIANT_PROBES)
     else:
-        requested = set(raw_ids) if raw_ids else bound
+        requested = set(raw_ids) if raw_ids else bound | set(VARIANT_PROBES)
     known_variants = {
         variant["id"]: matrix["id"]
         for matrix in catalog["matrices"]
