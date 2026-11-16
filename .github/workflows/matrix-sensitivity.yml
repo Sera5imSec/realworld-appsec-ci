@@ -4,10 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       matrix_id:
-        description: 'Matrix ID to probe, or all for every matrix'
+        description: 'Matrix ID, RW-ROUTE-01-R10-P, or all for every matrix'
         required: true
         default: all
         type: string
+  push:
+    branches:
+      - test/route-r10-sensitivity-20261116
 
 jobs:
   sensitivity:
@@ -40,13 +43,17 @@ jobs:
 
     - name: Run requested source-mutation probes
       env:
-        MATRIX_ID: ${{ inputs.matrix_id }}
+        MATRIX_ID: ${{ inputs.matrix_id || 'all' }}
       run: |
         if [ "$MATRIX_ID" = "all" ]; then
           python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --output "$RUNNER_TEMP/matrix-sensitivity.json"
         else
           python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --matrix "$MATRIX_ID" --output "$RUNNER_TEMP/matrix-sensitivity.json"
         fi
+
+    - name: Verify R10-P variant probe on test branch
+      if: github.event_name == 'push'
+      run: python3 security/matrix_sensitivity.py --binary "$RUNNER_TEMP/realworld-app" --matrix RW-ROUTE-01-R10-P --output "$RUNNER_TEMP/matrix-sensitivity-r10.json"
 
     - name: Upload manual sensitivity evidence
       if: always()

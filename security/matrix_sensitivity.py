@@ -144,6 +144,17 @@ PROBES = {
                  "RW-DB-02-N02"),
 }
 
+# Explicit variant probes supplement the single representative probe per matrix.
+VARIANT_PROBES = {
+    "RW-ROUTE-01-R10-P": (
+        "RW-ROUTE-01",
+        ("hello.go", None,
+         "v1.Use(users.AuthMiddleware(false))",
+         "v1.Use(users.AuthMiddleware(true))",
+         "RW-ROUTE-01-R10-P"),
+    ),
+}
+
 
 def mutate(source: Path, relative: str, function: str | None, old: str, new: str):
     file = source / relative
@@ -207,13 +218,20 @@ def main() -> int:
         requested = bound
     else:
         requested = set(raw_ids) if raw_ids else bound
-    unknown = requested - bound
+    known_variants = {
+        variant["id"]: matrix["id"]
+        for matrix in catalog["matrices"]
+        for variant in matrix["variants"]
+    }
+    unknown = requested - bound - set(VARIANT_PROBES)
     if unknown:
-        variant_owners = {probe[4]: matrix_id for matrix_id, probe in PROBES.items()}
         hints = []
         for value in sorted(unknown):
-            if value in variant_owners:
-                hints.append(f"{value} is a variant; use {variant_owners[value]}")
+            if value in known_variants:
+                hints.append(
+                    f"{value} has no dedicated mutation probe; "
+                    f"use matrix {known_variants[value]} for its representative probe"
+                )
         error = f"unknown matrix ID: {', '.join(sorted(unknown))}"
         if hints:
             error += "; " + "; ".join(hints)
@@ -222,22 +240,32 @@ def main() -> int:
         return 2
     selected = requested
     if args.selection:
-        selected &= set(json.loads(args.selection.read_text(encoding="utf-8"))["selected"])
+        allowed_matrices = set(json.loads(args.selection.read_text(encoding="utf-8"))["selected"])
+        selected = {
+            value for value in selected
+            if (VARIANT_PROBES[value][0] if value in VARIANT_PROBES else value)
+            in allowed_matrices
+        }
     if not selected:
         error = "no matrix probes selected"
         write_report(args.output, [], error)
         print(error)
         return 2
-    missing = selected - set(PROBES)
+    missing = selected - set(PROBES) - set(VARIANT_PROBES)
     if missing:
         error = f"missing manual probe: {', '.join(sorted(missing))}"
         write_report(args.output, [], error)
         print(error)
         return 2
     results = []
-    for matrix_id, (file, function, old, new, variant_id) in PROBES.items():
-        if matrix_id not in selected:
+    for probe_id in (*PROBES, *VARIANT_PROBES):
+        if probe_id not in selected:
             continue
+        if probe_id in VARIANT_PROBES:
+            matrix_id, (file, function, old, new, variant_id) = VARIANT_PROBES[probe_id]
+        else:
+            matrix_id = probe_id
+            file, function, old, new, variant_id = PROBES[probe_id]
         row = {"matrix_id": matrix_id, "variant_id": variant_id,
                "mutation": f"{file}:{function or 'router registration'}"}
         try:
