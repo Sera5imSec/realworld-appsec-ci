@@ -15,11 +15,13 @@ import deploy as installer
 
 
 def bundle(project, revision, image, destination, corrupt=False):
+    reference = "boundary-cd/" + project + ":" + revision
+    docker("tag", image, reference)
     with tempfile.TemporaryDirectory() as temporary:
         folder = Path(temporary)
         archive = folder / "image.tar.gz"
         with gzip.open(archive, "wb", compresslevel=1) as output:
-            save = subprocess.Popen(["docker", "save", image], stdout=subprocess.PIPE)
+            save = subprocess.Popen(["docker", "save", reference], stdout=subprocess.PIPE)
             shutil.copyfileobj(save.stdout, output)
             save.stdout.close()
             if save.wait():
@@ -28,7 +30,8 @@ def bundle(project, revision, image, destination, corrupt=False):
             checksum = hashlib.file_digest(source, "sha256").hexdigest()
         manifest = {"schema_version": 1, "project": project, "repository": PROJECTS[project]["repository"],
                     "revision": revision, "ci_run_id": 0, "delivery_run_id": 0,
-                    "platform": "linux/amd64", "image_id": docker("image", "inspect", "--format", "{{.Id}}", image),
+                    "platform": "linux/amd64", "image_reference": reference,
+                    "image_id": "sha256:" + "f" * 64,
                     "archive_sha256": "0" * 64 if corrupt else checksum}
         (folder / "release.json").write_text(json.dumps(manifest))
         with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_STORED) as output:
@@ -47,6 +50,7 @@ def main():
         bundle(project, first, image, archive)
         before = deploy(archive, project, first, 0, 0)
         assert before["status"] == "DEPLOYED"
+        outcomes.append({"project": project, "check": "portable-image-identity", "status": "PASS"})
         if project == "realworld":
             with sqlite3.connect(BASE / project / "data/gorm.db") as connection:
                 connection.execute("CREATE TABLE IF NOT EXISTS cd_persistence_probe (value TEXT)")

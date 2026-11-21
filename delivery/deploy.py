@@ -108,8 +108,14 @@ def deploy(archive, project, revision, ci_run, delivery_run):
                 if hashlib.file_digest(source, "sha256").hexdigest() != manifest.get("archive_sha256"):
                     raise ValueError("Image archive checksum mismatch")
             docker("load", "--input", str(temp / "image.tar.gz"))
-            image = manifest["image_id"]
-            labels = json.loads(docker("image", "inspect", image))[0]["Config"].get("Labels", {})
+            reference = "boundary-cd/" + project + ":" + revision
+            if manifest.get("image_reference", reference) != reference:
+                raise ValueError("Unapproved image reference")
+            loaded = json.loads(docker("image", "inspect", reference))[0]
+            image = loaded["Id"]
+            if loaded.get("Os") != "linux" or loaded.get("Architecture") != "amd64":
+                raise ValueError("Loaded image platform is outside the delivery contract")
+            labels = loaded["Config"].get("Labels", {})
             if (labels.get("org.opencontainers.image.revision") != revision or
                     labels.get("org.opencontainers.image.source") != "https://github.com/" + config["repository"]):
                 raise ValueError("Loaded image labels do not match the admitted revision")

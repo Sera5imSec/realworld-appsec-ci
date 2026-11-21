@@ -103,7 +103,7 @@ def main():
     digest = hashlib.file_digest(archive.open("rb"), "sha256").hexdigest()
     manifest = {"schema_version": 1, "project": project, "repository": repository,
                 "revision": revision, "ci_run_id": ci_run, "delivery_run_id": int(os.environ["GITHUB_RUN_ID"]),
-                "image_id": docker("image", "inspect", "--format", "{{.Id}}", image),
+                "image_id": docker("image", "inspect", "--format", "{{.Id}}", image), "image_reference": image,
                 "archive_sha256": digest, "platform": "linux/amd64"}
     (destination / "release.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest))
