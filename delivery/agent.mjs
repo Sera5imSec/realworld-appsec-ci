@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const stateDirectory = process.env.LOCAL_CD_STATE_DIR ?? path.join(directory, '..', 'artifacts', 'local-cd-agent');
@@ -31,15 +32,28 @@ function linux(file) {
   return '/mnt/' + absolute[0].toLowerCase() + absolute.slice(2);
 }
 
+async function checksum(file) {
+  const hash = createHash('sha256');
+  for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
+  return hash.digest('hex');
+}
+
 async function cycle() {
   const headers = {Authorization: 'Bearer ' + token(), Accept: 'application/vnd.github+json',
     'User-Agent': 'boundary-local-cd', 'X-GitHub-Api-Version': '2022-11-28'};
   async function api(route, method = 'GET', body) {
-    const response = await fetch('https://api.github.com' + route, {method, headers: {...headers,
-      ...(body ? {'Content-Type': 'application/json'} : {})}, body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(30000)});
-    if (!response.ok) throw new Error(`GitHub HTTP ${response.status} ${route}`);
-    return response.status === 204 ? null : response.json();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await fetch('https://api.github.com' + route, {method, headers: {...headers,
+          ...(body ? {'Content-Type': 'application/json'} : {})}, body: body ? JSON.stringify(body) : undefined,
+          signal: AbortSignal.timeout(30000)});
+        if (!response.ok) throw new Error(`GitHub HTTP ${response.status} ${route}`);
+        return response.status === 204 ? null : await response.json();
+      } catch (error) {
+        if (attempt === 2) throw new Error(route + ': ' + (error.cause?.message ?? error.message));
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
+    }
   }
   if ((await api('/user')).login !== owner) throw new Error('Wrong GitHub account');
   const state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : {};
@@ -62,19 +76,38 @@ async function cycle() {
     const artifacts = (await api(root + '/actions/runs/' + run.id + '/artifacts')).artifacts
       .filter(value => value.name === 'local-cd-image' && !value.expired);
     if (artifacts.length !== 1 || artifacts[0].size_in_bytes > 750 * 1024 * 1024) throw new Error('Invalid delivery artifact');
-    const response = await fetch('https://api.github.com' + root + '/actions/artifacts/' + artifacts[0].id + '/zip',
-      {headers, signal: AbortSignal.timeout(300000)});
-    if (!response.ok) throw new Error('Artifact download failed');
     const archive = path.join(stateDirectory, 'artifacts', project + '-' + run.id + '.zip');
-    const file = fs.openSync(archive, 'w');
-    let bytes = 0;
-    try {
-      for await (const chunk of response.body) {
-        bytes += chunk.length;
-        if (bytes > 750 * 1024 * 1024) throw new Error('Artifact exceeds download limit');
-        fs.writeSync(file, chunk);
+    const expectedDigest = artifacts[0].digest?.replace(/^sha256:/, '');
+    if (!/^[0-9a-f]{64}$/.test(expectedDigest ?? '')) throw new Error('GitHub artifact digest is missing');
+    let cached = fs.existsSync(archive) && fs.statSync(archive).size === artifacts[0].size_in_bytes &&
+      await checksum(archive) === expectedDigest;
+    const partial = archive + '.partial';
+    if (!cached && fs.existsSync(partial) && fs.statSync(partial).size === artifacts[0].size_in_bytes &&
+        await checksum(partial) === expectedDigest) {
+      fs.renameSync(partial, archive);
+      cached = true;
+    }
+    if (!cached) {
+      const offset = fs.existsSync(partial) ? fs.statSync(partial).size : 0;
+      const response = await fetch('https://api.github.com' + root + '/actions/artifacts/' + artifacts[0].id + '/zip',
+        {headers: {...headers, ...(offset ? {Range: 'bytes=' + offset + '-'} : {})}, signal: AbortSignal.timeout(900000)});
+      if (!response.ok) throw new Error('Artifact download failed');
+      const resumed = response.status === 206 && response.headers.get('content-range')?.startsWith('bytes ' + offset + '-');
+      const file = fs.openSync(partial, resumed ? 'a' : 'w');
+      let bytes = resumed ? offset : 0;
+      try {
+        for await (const chunk of response.body) {
+          bytes += chunk.length;
+          if (bytes > artifacts[0].size_in_bytes) throw new Error('Artifact exceeds its declared size');
+          fs.writeSync(file, chunk);
+        }
+      } finally { fs.closeSync(file); }
+      if (bytes !== artifacts[0].size_in_bytes || await checksum(partial) !== expectedDigest) {
+        fs.unlinkSync(partial);
+        throw new Error('Downloaded GitHub artifact digest does not match');
       }
-    } finally { fs.closeSync(file); }
+      fs.renameSync(partial, archive);
+    }
     if ((await api(root + '/commits/main')).sha !== main.sha) continue;
     const deployment = await api(root + '/deployments', 'POST', {ref: main.sha, environment: 'local-cd',
       auto_merge: false, required_contexts: [], description: 'Loopback-only local Docker test stand',
