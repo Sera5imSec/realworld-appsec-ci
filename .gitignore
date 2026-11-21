@@ -39,3 +39,6 @@ results.sarif
 
 bak.*
 tmp/
+release/
+__pycache__/
+artifacts/

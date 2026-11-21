@@ -1,0 +1,11 @@
+**
+!go.mod
+!go.sum
+!*.go
+!common/
+!common/*.go
+!users/
+!users/*.go
+!articles/
+!articles/*.go
+**/*.db

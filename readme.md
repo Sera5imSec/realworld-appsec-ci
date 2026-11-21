@@ -1,5 +1,9 @@
 # RealWorld AppSec Boundary Matrices
 
+**[Local CD](docs/LOCAL-CD.md)** — successful main CI builds and HTTP-tests a
+Docker image; a local pull agent verifies and installs it with persistent SQLite
+data and rollback. Installation results appear in GitHub Deployments (`local-cd`).
+
 [![AppSec CI](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml)
 
 This research extension to the [Go/Gin RealWorld example](https://github.com/gothinkster/golang-gin-realworld-example-app) turns source-linked security rules into executable GitHub Actions checks. The default branch contains **30 boundary matrices and 159 HTTP scenarios** across the application's 19 canonical API routes. Each matrix has a normal control, a negative case, an observable result, and a representative sensitivity check using a disposable source change.

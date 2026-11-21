@@ -1,0 +1,44 @@
+name: Local CD
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: local-cd-main
+  cancel-in-progress: false
+jobs:
+  delivery:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Verify delivery admission rules
+        run: python3 -m unittest discover -s delivery -p 'test_*.py'
+      - name: Verify exact successful main CI, build and smoke-test image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CD_PROJECT: realworld
+        run: python3 delivery/build_release.py
+      - name: Publish immutable local-CD artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: local-cd-image
+          path: artifacts/cd-release/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Explain delivery handoff
+        run: echo 'Image passed its HTTP check. The local pull agent records the actual installation under Deployments → local-cd.' >> "$GITHUB_STEP_SUMMARY"
