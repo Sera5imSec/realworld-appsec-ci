@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -20,6 +21,7 @@ BINDINGS = ROOT / "security" / "matrices" / "bindings.json"
 ACCEPTED_FAILURES = ROOT / "security" / "matrices" / "accepted_failures.json"
 CI_FILES = {"security/matrices/catalog.json", "security/matrix_ci.py", ".github/workflows/ci.yml"}
 GO_DEPENDENCIES = {"go.mod", "go.sum", "go.work", "go.work.sum"}
+REVIEW_DECISIONS_FILE = "security/matrices/code_decisions.json"
 ARTICLE_ROUTE_FILES = {
     "articles/routers.go", "articles/serializers.go", "articles/validators.go",
 }
@@ -205,7 +207,8 @@ def select(catalog: dict, changed: list[str], *, full: bool = False) -> dict:
                for route in m["reach"])
     }
     if full or not changed or any(
-        p in CI_FILES or p in GO_DEPENDENCIES or p.startswith("security/")
+        p in CI_FILES or p in GO_DEPENDENCIES or
+        (p.startswith("security/") and p != REVIEW_DECISIONS_FILE)
         for p in changed
     ):
         selected = all_ids
@@ -225,14 +228,128 @@ def select(catalog: dict, changed: list[str], *, full: bool = False) -> dict:
     }
 
 
+def review_source(*, base: str | None, full: bool, output: Path,
+                  node: str = "node") -> dict:
+    """Write fresh handoff reports before enforcing pre-build source review."""
+    output.mkdir(parents=True, exist_ok=True)
+
+    def save(name: str, value: dict) -> None:
+        (output / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    errors: list[str] = []
+    impact = {"schema_version": 1, "status": "NOT_RUN", "analysis_skipped": None,
+              "changed_files": [], "changed_functions": [], "changed_routes": [], "changed_top_level": []}
+    review = {"schema_version": 1, "status": "NOT_RUN", "rows": [], "blocking": [], "errors": []}
+    selection = {"selected": [], "bound": [], "hold_policy": [],
+                 "unmapped_production_files": [], "blocked": True}
+    # A reused checkout must never expose an old PASS after a parser/setup error.
+    save("boundary-change-impact.json", impact)
+    save("boundary-review.json", review)
+    (output / "boundary-review.md").write_text("# Boundary change review\n\nNot run.\n", encoding="utf-8")
+    save("matrix-runtime.json", {"status": "NOT_RUN", "results": []})
+    save("matrix-status.json", {"status": "NOT_RUN", "phase": "SOURCE_REVIEW", "rows": []})
+    catalog = None
+    try:
+        catalog = load_catalog()
+        validation_errors = validate(catalog)
+        validation = {"status": "FAIL" if validation_errors else "PASS",
+                      "matrices": len(catalog["matrices"]),
+                      "variants": sum(len(row["variants"]) for row in catalog["matrices"]),
+                      "errors": validation_errors}
+        errors.extend(validation_errors)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        validation = {"status": "ERROR", "errors": [f"Catalog validation: {exc}"]}
+        errors.extend(validation["errors"])
+    save("catalog-validation.json", validation)
+
+    def run_json(command: list[str], name: str) -> dict | None:
+        try:
+            completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                                       check=False, timeout=120)
+            (output / (name + ".log")).write_text(completed.stdout + completed.stderr, encoding="utf-8")
+            value = json.loads((output / name).read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("command did not write a JSON object")
+            if value.get("status") == "NOT_RUN":
+                raise ValueError(completed.stderr.strip() or f"command exited {completed.returncode} without a report")
+            if completed.returncode and not value.get("errors") and not value.get("blocking"):
+                raise ValueError(completed.stderr.strip() or f"command exited {completed.returncode}")
+            return value
+        except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+            errors.append(f"{name}: {exc}")
+            failed = {"schema_version": 1, "status": "ERROR", "errors": [str(exc)]}
+            if name == "boundary-change-impact.json":
+                failed.update(analysis_skipped=None, changed_files=[], changed_functions=[],
+                              changed_routes=[], changed_top_level=[])
+            else:
+                failed.update(rows=[], blocking=[])
+            save(name, failed)
+            return None
+
+    effective_full = full or not base or bool(re.fullmatch(r"0{40}", base))
+    command = [node, str(ROOT / "security/change_impact.mjs"), "--output", str(output / "boundary-change-impact.json")]
+    command += ["--full"] if effective_full else ["--base", base]
+    current = run_json(command, "boundary-change-impact.json")
+    if current is not None:
+        impact = current
+        current_review = run_json([node, str(ROOT / "security/boundary_review.mjs"),
+                                   "--impact", str(output / "boundary-change-impact.json"),
+                                   "--output", str(output / "boundary-review.json"),
+                                   "--markdown-out", str(output / "boundary-review.md")], "boundary-review.json")
+        if current_review is not None:
+            review = current_review
+            errors.extend(review.get("errors", []))
+            errors.extend(review.get("blocking", []))
+    if not errors and catalog is not None:
+        try:
+            selection = select(catalog, [] if effective_full else changed_paths(base), full=effective_full)
+            if selection["unmapped_production_files"]:
+                errors.append("Production source without matrix mapping")
+        except (OSError, ValueError, RuntimeError) as exc:
+            errors.append(f"Matrix selection: {exc}")
+    if errors:
+        selection["blocked"] = True
+    save("matrix-selection.json", selection)
+    result = {"schema_version": 1, "status": "FAIL" if errors else "PASS", "phase": "SOURCE_REVIEW",
+              "coverage_status": "REVIEW_REQUIRED" if review.get("blocking") else "ERROR" if errors else "PASS",
+              "requested_base": base, "base": impact.get("base"), "head": impact.get("head"),
+              "analysis_skipped": impact.get("analysis_skipped"),
+              "changed_units": len(impact.get("changed_functions", [])) + len(impact.get("changed_routes", [])) + len(impact.get("changed_top_level", [])),
+              "oracle_execution": "NOT_RUN", "errors": errors}
+    save("source-review.json", result)
+    status = {"status": "FAIL" if errors else "NOT_RUN", "phase": "SOURCE_REVIEW",
+              "oracle_execution": "NOT_RUN", "rows": [], "errors": errors}
+    save("matrix-status.json", status)
+    markdown = "# Source coverage review\n\n" + f"Status: **{result['status']}**; coverage: **{result['coverage_status']}**.\n\n"
+    markdown += "Matrix runtime: **NOT_RUN**. This report only permits or blocks the build.\n\n"
+    if impact.get("analysis_skipped"):
+        markdown += "No PR diff was analyzed for this full/no-base run. Catalog and production Go file inventory were validated.\n\n"
+    if errors:
+        markdown += "## Required action\n\n" + "\n".join(f"- {error}" for error in errors) + "\n\n"
+        markdown += "Give the PR link and these artifacts to a local assistant following AGENTS.md and docs/SOURCE-REVIEW.md.\n"
+    else:
+        markdown += f"Selected matrices: {len(selection['selected'])}. Source review is not a runtime verdict.\n"
+    (output / "source-review.md").write_text(markdown, encoding="utf-8")
+    (output / "matrix-status.md").write_text(markdown, encoding="utf-8")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
+            stream.write(markdown + "\n" + (output / "boundary-review.md").read_text(encoding="utf-8"))
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("validate", "select"))
+    parser.add_argument("command", choices=("validate", "select", "review"))
     parser.add_argument("--base", help="base commit for PR/push selection")
     parser.add_argument("--full", action="store_true", help="run every matrix regardless of changed files")
     parser.add_argument("--output", type=Path, help="write JSON selection")
+    parser.add_argument("--artifacts-dir", type=Path, default=ROOT / "artifacts", help="source-review report directory")
     args = parser.parse_args()
     try:
+        if args.command == "review":
+            report = review_source(base=args.base, full=args.full, output=args.artifacts_dir.resolve())
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0 if report["status"] == "PASS" else 1
         catalog = load_catalog()
         errors = validate(catalog)
         if errors:

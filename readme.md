@@ -1,12 +1,14 @@
 # RealWorld AppSec Boundary Matrices
 
+**[Workflow and matrix development](docs/WORKFLOW.md)** · **[Review a failed PR with an agent](docs/SOURCE-REVIEW.md)** · **[AGENTS.md](AGENTS.md)**
+
 **[Local CD](docs/LOCAL-CD.md)** — successful main CI builds and HTTP-tests a
 Docker image; a local pull agent verifies and installs it with persistent SQLite
 data and rollback. Installation results appear in GitHub Deployments (`local-cd`).
 
 [![AppSec CI](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sera5imSec/realworld-appsec-private/actions/workflows/ci.yml)
 
-This research extension to the [Go/Gin RealWorld example](https://github.com/gothinkster/golang-gin-realworld-example-app) turns source-linked security rules into executable GitHub Actions checks. The default branch contains **30 boundary matrices and 159 HTTP scenarios** across the application's 19 canonical API routes. Each matrix has a normal control, a negative case, an observable result, and a representative sensitivity check using a disposable source change.
+This research extension to the [Go/Gin RealWorld example](https://github.com/gothinkster/golang-gin-realworld-example-app) turns source-linked security rules into executable GitHub Actions checks. The catalog contains **32 boundary matrices and 164 HTTP/SQLite scenarios** across the application's 19 canonical API routes. Each matrix has a normal control, a negative case, an observable result, and a representative sensitivity check using a disposable source change. Source sensitivity is invoked separately and manually.
 
 The CI gate runs alongside Go tests, API tests, lint, and scanning. Six reviewed local deviations remain visible as `KNOWN_FAIL`; new or changed results fail the gate. The [matrix documentation](security/README.md), [catalog](security/matrices/catalog.json), and [policy](security/POLICY.md) describe the exact scope and evidence rules. These results concern the source checkout and synthetic test data, not a deployed service.
 

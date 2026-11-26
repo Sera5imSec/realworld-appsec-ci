@@ -1,5 +1,12 @@
 # AppSec boundary matrix CI
 
+**[Workflow](../docs/WORKFLOW.md)** · **[Source review with a local assistant](../docs/SOURCE-REVIEW.md)** · **[Contributor instructions](../AGENTS.md)**
+
+Normal CI now writes source-review handoff reports and stops on missing decisions
+before building the application. Give the failed PR to a local assistant; an
+authorized correction to the same branch starts a new CI run. There is no
+automatic cloud-agent invocation. Source mutations remain manual and separate.
+
 This is a local, source-linked CI gate for the Go/Gin RealWorld backend. It uses
 the [catalog](matrices/catalog.json) based on upstream commit
 `626c372d259472148d93303f74aa9b9a1cdcef24` plus local hardening changes.
@@ -73,6 +80,8 @@ Existing shared database code, compiled test helpers, and package documentation
 are explicitly classified for a full run. The catalog validator also fails if
 any production Go file lacks a classification, even when that file was not
 changed in the current PR.
+The decision journal is excluded from the broad security-file full-run trigger;
+it is still validated, while the changed Go code determines runtime selection.
 Non-Go documentation-only and Go test-only changes do not run this matrix job's
 runtime cases; the repository's other test jobs still run.
 
@@ -145,6 +154,7 @@ in `GIN_MODE=release`. The matrix runner supplies its own synthetic test key.
 
 ```sh
 python3 security/matrix_ci.py validate
+python3 security/matrix_ci.py review --base BASE_COMMIT_SHA
 python3 security/matrix_ci.py select --output /tmp/matrix-selection.json
 CGO_ENABLED=1 go build -o /tmp/realworld-app .
 python3 security/matrix_runtime.py --binary /tmp/realworld-app --selection /tmp/matrix-selection.json --output /tmp/matrix-runtime.json
