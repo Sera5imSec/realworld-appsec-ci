@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -330,7 +331,6 @@ def review_source(*, base: str | None, full: bool, output: Path,
         markdown += f"Selected matrices: {len(selection['selected'])}. Source review is not a runtime verdict.\n"
     (output / "source-review.md").write_text(markdown, encoding="utf-8")
     (output / "matrix-status.md").write_text(markdown, encoding="utf-8")
-    import os
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
             stream.write(markdown + "\n" + (output / "boundary-review.md").read_text(encoding="utf-8"))

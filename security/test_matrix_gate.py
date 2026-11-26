@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -76,7 +77,8 @@ class MatrixGateTest(unittest.TestCase):
             git("commit", "--quiet", "-m", "Add unused review fixture helper")
             output = fixture / "artifacts"
             command = [sys.executable, str(fixture / "security/matrix_ci.py"), "review", "--base", base]
-            first = subprocess.run(command, cwd=fixture, capture_output=True, text=True, check=False)
+            environment = {**os.environ, "GITHUB_STEP_SUMMARY": str(output / "fixture-step-summary.md")}
+            first = subprocess.run(command, cwd=fixture, capture_output=True, text=True, check=False, env=environment)
             self.assertEqual(first.returncode, 1, first.stdout + first.stderr)
             report = json.loads((output / "source-review.json").read_text())
             self.assertEqual(report["coverage_status"], "REVIEW_REQUIRED")
@@ -96,7 +98,7 @@ class MatrixGateTest(unittest.TestCase):
             journal_path.write_text(json.dumps(journal), encoding="utf-8")
             git("add", "security/matrices/code_decisions.json")
             git("commit", "--quiet", "-m", "Record exact fixture decision")
-            second = subprocess.run(command, cwd=fixture, capture_output=True, text=True, check=False)
+            second = subprocess.run(command, cwd=fixture, capture_output=True, text=True, check=False, env=environment)
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
             self.assertEqual(json.loads((output / "source-review.json").read_text())["status"], "PASS")
             self.assertEqual(json.loads((output / "matrix-runtime.json").read_text())["status"], "NOT_RUN")
